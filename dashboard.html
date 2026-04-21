@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FairSight — AI Bias Auditor</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+/* ─── RESET & ROOT ──────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0A0E1A;--ink2:#1E2535;--ink3:#2D3650;
+  --slate:#8892A4;--mist:#C4CEDE;--fog:#EEF1F7;--white:#FFFFFF;
+  --accent:#FF4D6D;--accent2:#FF8FA3;
+  --blue:#2563EB;--blue-l:#DBEAFE;
+  --amber:#D97706;--amber-l:#FEF3C7;
+  --green:#059669;--green-l:#D1FAE5;
+  --red:#DC2626;--red-l:#FEE2E2;
+  --radius:10px;--radius-lg:16px;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.06);
+  --shadow-lg:0 4px 24px rgba(0,0,0,.12);
+}
+body{font-family:'Outfit',sans-serif;background:var(--fog);color:var(--ink);min-height:100vh;font-size:14px;line-height:1.6}
+/* ─── LAYOUT ────────────────────────────────────────────────── */
+.shell{display:flex;min-height:100vh}
+/* ─── SIDEBAR ───────────────────────────────────────────────── */
+.sb{width:240px;background:var(--ink);color:var(--white);flex-shrink:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow:hidden}
+.sb-brand{padding:28px 22px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-logo{display:flex;align-items:center;gap:11px;margin-bottom:6px}
+.sb-gem{width:34px;height:34px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;box-shadow:0 0 20px rgba(255,77,109,.4)}
+.sb-wordmark{font-family:'DM Serif Display',serif;font-size:18px;letter-spacing:-.3px}
+.sb-tagline{font-size:11px;color:rgba(255,255,255,.4);letter-spacing:.5px;text-transform:uppercase}
+.sb-nav{padding:16px 12px;flex:1;display:flex;flex-direction:column;gap:2px}
+.nb{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:rgba(255,255,255,.55);font-weight:500;border:none;background:none;width:100%;text-align:left;transition:all .15s}
+.nb:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.85)}
+.nb.on{background:rgba(255,77,109,.18);color:var(--accent2)}
+.nb-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.nb-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:auto;display:none}
+.nb.on .nb-dot{display:block}
+.sb-foot{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08)}
+.sb-status{font-size:11px;color:rgba(255,255,255,.3);line-height:1.7}
+.sb-status strong{color:rgba(255,255,255,.6);font-weight:500}
+/* ─── MAIN ──────────────────────────────────────────────────── */
+.main{flex:1;overflow:auto}
+.topbar{padding:20px 36px;background:var(--white);border-bottom:1px solid #E5E9F0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+.topbar-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.page{padding:32px 36px;max-width:1120px}
+/* ─── TYPOGRAPHY ────────────────────────────────────────────── */
+h1{font-family:'DM Serif Display',serif;font-size:28px;color:var(--ink);letter-spacing:-.4px;line-height:1.2}
+h2{font-size:16px;font-weight:600;color:var(--ink);margin-bottom:14px}
+h3{font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+/* ─── CARDS ─────────────────────────────────────────────────── */
+.card{background:var(--white);border:1px solid #E5E9F0;border-radius:var(--radius-lg);padding:24px;margin-bottom:16px;box-shadow:var(--shadow)}
+.card-accent{border-left:4px solid var(--accent)}
+/* ─── GRIDS ─────────────────────────────────────────────────── */
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:16px}
+/* ─── STAT CARDS ────────────────────────────────────────────── */
+.stat{background:var(--white);border:1px solid #E5E9F0;border-radius:var(--radius-lg);padding:18px 20px;box-shadow:var(--shadow)}
+.stat-lbl{font-size:11px;color:var(--slate);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px}
+.stat-val{font-size:28px;font-weight:700;line-height:1;font-family:'DM Mono',monospace}
+.stat-sub{font-size:11px;color:var(--slate);margin-top:4px}
+/* ─── BADGES ────────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.2px}
+.badge.severe,.badge.high{background:var(--red-l);color:var(--red)}
+.badge.moderate,.badge.medium{background:var(--amber-l);color:var(--amber)}
+.badge.fair,.badge.low{background:var(--green-l);color:var(--green)}
+.badge.info,.badge.blue{background:var(--blue-l);color:var(--blue)}
+/* ─── TABLES ────────────────────────────────────────────────── */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{background:var(--fog);color:var(--slate);font-size:11px;text-transform:uppercase;letter-spacing:.6px;padding:10px 14px;text-align:left;font-weight:600;border-bottom:1px solid #E5E9F0}
+.tbl td{padding:10px 14px;border-bottom:1px solid var(--fog);color:var(--ink)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#FAFBFD}
+.pass{color:var(--green);font-weight:700}.fail{color:var(--red);font-weight:700}
+/* ─── FLAGS ─────────────────────────────────────────────────── */
+.flag{display:flex;gap:12px;padding:12px 14px;border-radius:10px;margin-bottom:8px;font-size:13px;line-height:1.6}
+.flag.high{background:var(--red-l);border-left:3px solid var(--red)}
+.flag.medium{background:var(--amber-l);border-left:3px solid var(--amber)}
+.flag.info{background:var(--blue-l);border-left:3px solid var(--blue)}
+.flag-icon{font-size:14px;flex-shrink:0;margin-top:2px}
+/* ─── BAR ROWS ──────────────────────────────────────────────── */
+.bar-wrap{background:var(--fog);border-radius:99px;height:8px;overflow:hidden;flex:1}
+.bar-fill{height:100%;border-radius:99px;transition:width .6s ease}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.bar-lbl{width:90px;font-size:12px;color:var(--slate);flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-pct{font-size:12px;font-weight:600;width:42px;text-align:right;flex-shrink:0;font-family:'DM Mono',monospace}
+/* ─── BUTTONS ───────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;font-family:'Outfit',sans-serif}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(255,77,109,.35)}
+.btn-primary:hover{background:#e03455;box-shadow:0 4px 14px rgba(255,77,109,.4);transform:translateY(-1px)}
+.btn-secondary{background:var(--white);color:var(--ink);border:1px solid #E5E9F0;box-shadow:var(--shadow)}
+.btn-secondary:hover{background:var(--fog);border-color:var(--mist)}
+.btn-ink{background:var(--ink);color:var(--white)}
+.btn-ink:hover{background:var(--ink2)}
+.btn-green{background:var(--green);color:#fff;box-shadow:0 2px 8px rgba(5,150,105,.3)}
+.btn-green:hover{opacity:.9;transform:translateY(-1px)}
+.btn:disabled{opacity:.38;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+/* ─── FORM ──────────────────────────────────────────────────── */
+.lbl{display:block;font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:6px}
+.lbl-hint{font-size:11px;color:var(--slate);font-weight:400;margin-left:4px}
+.field{width:100%;padding:10px 13px;background:var(--white);border:1.5px solid #E5E9F0;border-radius:var(--radius);color:var(--ink);font-size:13px;outline:none;font-family:'Outfit',sans-serif;transition:border-color .15s}
+.field:focus{border-color:var(--accent)}
+/* ─── UPLOAD ZONES ──────────────────────────────────────────── */
+.uz{border:2px dashed #D1D9E8;border-radius:var(--radius-lg);padding:40px 24px;text-align:center;cursor:pointer;transition:all .2s;background:var(--fog)}
+.uz:hover,.uz.drag{border-color:var(--accent);background:#FFF5F7}
+.uz-icon{font-size:32px;margin-bottom:12px}
+.uz-title{font-weight:600;color:var(--ink);margin-bottom:4px}
+.uz-hint{font-size:12px;color:var(--slate)}
+.muz{border:1.5px dashed #D1D9E8;border-radius:var(--radius);padding:20px;text-align:center;cursor:pointer;transition:all .18s}
+.muz:hover{border-color:var(--blue);background:var(--blue-l)}
+/* ─── TABS ──────────────────────────────────────────────────── */
+.tabs{display:flex;background:var(--fog);border-radius:var(--radius);padding:4px;gap:2px;margin-bottom:16px;max-width:420px}
+.tab{flex:1;padding:8px 16px;font-size:13px;font-weight:500;color:var(--slate);cursor:pointer;border:none;background:transparent;border-radius:8px;transition:all .14s;font-family:'Outfit',sans-serif;text-align:center}
+.tab.on{background:var(--white);color:var(--ink);box-shadow:var(--shadow);font-weight:600}
+/* ─── STEPS ─────────────────────────────────────────────────── */
+.steps{display:flex;align-items:center;margin-bottom:28px}
+.step{display:flex;align-items:center;gap:8px}
+.step-n{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;border:2px solid #E5E9F0}
+.step-txt{font-size:12px;color:var(--slate)}
+.step-line{flex:1;height:1px;background:#E5E9F0;margin:0 8px}
+.step.done .step-n{background:var(--green);border-color:var(--green);color:#fff}
+.step.active .step-n{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 4px rgba(255,77,109,.2)}
+.step.wait .step-n{background:var(--white);color:var(--mist)}
+.step.active .step-txt{color:var(--ink);font-weight:600}
+/* ─── ALERTS ────────────────────────────────────────────────── */
+.alert{padding:12px 16px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;line-height:1.6}
+.alert.err{background:var(--red-l);border:1px solid #FCA5A5;color:var(--red)}
+.alert.info{background:var(--blue-l);border:1px solid #BFDBFE;color:var(--blue)}
+.alert.ok{background:var(--green-l);border:1px solid #6EE7B7;color:var(--green)}
+.alert.warn{background:var(--amber-l);border:1px solid #FCD34D;color:var(--amber)}
+/* ─── GAUGE ─────────────────────────────────────────────────── */
+.gauge-wrap{text-align:center;padding:16px 0}
+.gauge-num{font-family:'DM Serif Display',serif;font-size:52px;line-height:1;margin:8px 0 4px}
+/* ─── RISK BANNER ───────────────────────────────────────────── */
+.risk-banner{border-radius:var(--radius-lg);padding:20px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;margin-bottom:16px}
+.risk-banner.high{background:var(--red-l);border:1px solid #FCA5A5}
+.risk-banner.medium{background:var(--amber-l);border:1px solid #FCD34D}
+.risk-banner.low{background:var(--green-l);border:1px solid #6EE7B7}
+/* ─── DOMAIN PILLS ──────────────────────────────────────────── */
+.domain-pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.domain-pill{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;border:1.5px solid #E5E9F0;cursor:pointer;transition:all .14s;color:var(--slate);background:var(--white)}
+.domain-pill:hover,.domain-pill.on{background:var(--ink);color:var(--white);border-color:var(--ink)}
+/* ─── SPINNER ───────────────────────────────────────────────── */
+@keyframes sp{to{transform:rotate(360deg)}}
+.spin{display:inline-block;animation:sp .7s linear infinite}
+/* ─── DIVIDER ───────────────────────────────────────────────── */
+.div{height:1px;background:#E5E9F0;margin:18px 0}
+/* ─── HERO ──────────────────────────────────────────────────── */
+.hero{background:var(--ink);color:var(--white);border-radius:var(--radius-lg);padding:36px 32px;margin-bottom:24px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-40px;right:-40px;width:200px;height:200px;background:radial-gradient(circle,rgba(255,77,109,.3),transparent 70%);pointer-events:none}
+.hero-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--accent2);margin-bottom:10px;font-weight:600}
+.hero-title{font-family:'DM Serif Display',serif;font-size:30px;line-height:1.2;margin-bottom:10px}
+.hero-title em{color:var(--accent2);font-style:italic}
+.hero-body{font-size:14px;color:rgba(255,255,255,.65);max-width:520px;line-height:1.7}
+/* ─── SECTION HEADER ────────────────────────────────────────── */
+.sec-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+/* ─── METRIC INFO ROW ───────────────────────────────────────── */
+.mi-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+/* ─── SCROLLBAR ─────────────────────────────────────────────── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--fog)}
+::-webkit-scrollbar-thumb{background:var(--mist);border-radius:99px}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ════════ SIDEBAR ════════════════════════════════════════════ -->
+<nav class="sb">
+  <div class="sb-brand">
+    <div class="sb-logo">
+      <div class="sb-gem">⚖</div>
+      <span class="sb-wordmark">FairSight</span>
+    </div>
+    <div class="sb-tagline">AI Bias Auditor</div>
+  </div>
+  <div class="sb-nav">
+    <button class="nb on" id="nb-upload"   onclick="go('upload')"><span class="nb-icon">📥</span>Upload & Configure<span class="nb-dot"></span></button>
+    <button class="nb"    id="nb-overview" onclick="go('overview')"><span class="nb-icon">🏠</span>Overview<span class="nb-dot"></span></button>
+    <button class="nb"    id="nb-data"     onclick="go('data')"><span class="nb-icon">📊</span>Data Bias<span class="nb-dot"></span></button>
+    <button class="nb"    id="nb-model"    onclick="go('model')"><span class="nb-icon">🤖</span>Model Bias<span class="nb-dot"></span></button>
+    <button class="nb"    id="nb-mit"      onclick="go('mit')"><span class="nb-icon">🛠</span>Mitigation<span class="nb-dot"></span></button>
+    <button class="nb"    id="nb-report"   onclick="go('report')"><span class="nb-icon">📄</span>Report<span class="nb-dot"></span></button>
+  </div>
+  <div class="sb-foot">
+    <div class="sb-status" id="sb-stat">
+      <strong>Status:</strong> No dataset loaded
+    </div>
+  </div>
+</nav>
+
+<!-- ════════ MAIN ════════════════════════════════════════════════ -->
+<div class="main">
+
+<!-- ── TOPBAR ──────────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-title" id="top-title">Upload Dataset</div>
+  <div class="topbar-right">
+    <span id="top-api-badge" style="font-size:11px;color:var(--slate)">Checking API…</span>
+    <span style="font-size:11px;background:var(--fog);padding:4px 10px;border-radius:20px;color:var(--slate);font-family:'DM Mono',monospace">localhost:5050</span>
+  </div>
+</div>
+
+<!-- ════ PAGE: UPLOAD ════════════════════════════════════════════ -->
+<div id="pg-upload" class="page">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-eyebrow">Fairness Auditing Platform</div>
+    <div class="hero-title">Detect hidden bias<br><em>before it harms people.</em></div>
+    <div class="hero-body">AI systems now make life-changing decisions — loans, jobs, medical care. FairSight inspects your datasets and models for discrimination so you can fix it before deployment.</div>
+  </div>
+
+  <div id="api-banner"></div>
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step active" id="s1"><div class="step-n">1</div><span class="step-txt">Upload Data</span></div>
+    <div class="step-line"></div>
+    <div class="step wait"   id="s2"><div class="step-n">2</div><span class="step-txt">Configure</span></div>
+    <div class="step-line"></div>
+    <div class="step wait"   id="s3"><div class="step-n">3</div><span class="step-txt">Run Audit</span></div>
+    <div class="step-line"></div>
+    <div class="step wait"   id="s4"><div class="step-n">4</div><span class="step-txt">View Results</span></div>
+  </div>
+
+  <!-- Domain tiles -->
+  <h3 style="margin-bottom:12px">What domain are you auditing?</h3>
+  <div class="domain-pills" id="domain-pills">
+    <span class="domain-pill" onclick="setDomain(this,'loan')">💰 Loan / Credit</span>
+    <span class="domain-pill" onclick="setDomain(this,'hiring')">💼 Hiring / Recruitment</span>
+    <span class="domain-pill" onclick="setDomain(this,'medical')">🏥 Medical / Diagnosis</span>
+    <span class="domain-pill" onclick="setDomain(this,'criminal')">⚖ Criminal Justice</span>
+    <span class="domain-pill" onclick="setDomain(this,'housing')">🏠 Housing</span>
+    <span class="domain-pill" onclick="setDomain(this,'education')">🎓 Education</span>
+    <span class="domain-pill" onclick="setDomain(this,'other')">⬡ Other</span>
+  </div>
+
+  <!-- Sample + Upload -->
+  <div class="g2" style="margin-bottom:0">
+    <div class="card" style="border:2px solid var(--accent)">
+      <h3>Built-in sample</h3>
+      <h2 style="margin-bottom:6px">Loan Approval Dataset</h2>
+      <p style="color:var(--slate);font-size:13px;margin-bottom:16px">1,000 applicants · deliberate gender &amp; race bias · ready to audit instantly</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="loadSample()">Load sample</button>
+        <span style="font-size:12px;color:var(--slate);align-self:center">No upload needed</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Your own data</h3>
+      <h2 style="margin-bottom:6px">Upload any CSV dataset</h2>
+      <p style="color:var(--slate);font-size:13px;margin-bottom:16px">Loan, hiring, medical, housing — any domain with a binary outcome column</p>
+      <div class="uz" id="dz" onclick="document.getElementById('csv-in').click()"
+           ondragover="dzEv(event,1)" ondragleave="dzEv(event,0)" ondrop="dropCSV(event)">
+        <input type="file" id="csv-in" accept=".csv" style="display:none" onchange="uploadCSV(event)"/>
+        <div class="uz-icon">📂</div>
+        <div class="uz-title">Drop CSV or click to browse</div>
+        <div class="uz-hint">Any tabular dataset · UTF-8 · binary outcome required</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CONFIGURE (shown after upload) ── -->
+  <div id="cfg" class="card" style="display:none;margin-top:16px;border:2px solid var(--ink)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <div style="background:var(--ink);color:#fff;border-radius:8px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">2</div>
+      <h2 style="margin:0">Configure the Audit</h2>
+      <span id="ds-badge" style="font-size:12px;color:var(--slate)"></span>
+    </div>
+
+    <!-- Row 1 -->
+    <div class="g2" style="margin-bottom:14px">
+      <div>
+        <label class="lbl">Target column <span class="lbl-hint">the outcome being predicted</span></label>
+        <select id="tgt" class="field"></select>
+        <div id="tgt-hint" style="font-size:11px;color:var(--slate);margin-top:4px"></div>
+      </div>
+      <div>
+        <label class="lbl">Organisation / Company name <span class="lbl-hint">appears on the PDF report</span></label>
+        <input id="org" class="field" placeholder="e.g. Acme Bank, City Hospital, GlobalTech HR…"/>
+      </div>
+    </div>
+
+    <!-- Row 2: sensitive attrs -->
+    <div style="margin-bottom:16px">
+      <label class="lbl">Protected attributes to audit <span class="lbl-hint">click to toggle</span></label>
+      <div id="sens-tags" style="display:flex;flex-wrap:wrap;gap:7px;min-height:36px;align-items:center;padding:4px 0"></div>
+      <div style="font-size:11px;color:var(--slate);margin-top:6px">Auto-detected from column names. Gender, race, age, ethnicity, religion, disability, etc.</div>
+    </div>
+
+    <div class="div"></div>
+
+    <!-- Row 3: model source -->
+    <label class="lbl" style="margin-bottom:10px">Which model should be audited?</label>
+    <div class="tabs">
+      <button class="tab on" id="tab-tr" onclick="switchTab('train')">Train a new model</button>
+      <button class="tab"    id="tab-ex" onclick="switchTab('ext')">Upload my model (.pkl)</button>
+    </div>
+
+    <!-- Train panel -->
+    <div id="panel-train">
+      <label class="lbl">Algorithm <span class="lbl-hint">trained on your dataset, then audited</span></label>
+      <select id="algo" class="field" style="max-width:320px"></select>
+      <div style="font-size:11px;color:var(--slate);margin-top:6px">The model is trained on 70% of your data and audited on the remaining 30%.</div>
+    </div>
+
+    <!-- External panel -->
+    <div id="panel-ext" style="display:none">
+      <div class="muz" onclick="document.getElementById('mdl-in').click()">
+        <input type="file" id="mdl-in" accept=".pkl,.joblib" style="display:none" onchange="uploadModel(event)"/>
+        <div style="font-size:24px;margin-bottom:8px">🤖</div>
+        <div style="font-weight:600;margin-bottom:3px">Drop .pkl or .joblib file</div>
+        <div style="font-size:12px;color:var(--slate)">scikit-learn compatible binary classifier</div>
+      </div>
+      <div id="mdl-stat" style="margin-top:10px;font-size:13px;color:var(--slate)"></div>
+      <div class="alert info" style="margin-top:12px">
+        <strong>Important:</strong> Your model will be run on the CSV data you uploaded.
+        The audit uses your model's real predictions — no retraining.
+        If your model used a preprocessing pipeline, save it as part of the .pkl file.
+      </div>
+    </div>
+
+    <div class="div"></div>
+
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <button class="btn btn-primary" style="font-size:14px;padding:12px 28px" id="run-btn" onclick="runAudit()">
+        <span id="run-txt">🔍 Run Full Audit</span>
+      </button>
+      <div style="font-size:12px;color:var(--slate);line-height:1.5">
+        Sends your data to the local Flask API<br>Runs Steps 1–3 of the pipeline
+      </div>
+    </div>
+    <div id="run-err"></div>
+  </div>
+</div>
+
+<!-- ════ PAGE: OVERVIEW ══════════════════════════════════════════ -->
+<div id="pg-overview" class="page" style="display:none">
+  <div class="sec-head">
+    <div>
+      <h1>Audit Overview</h1>
+      <div id="ov-meta" style="font-size:13px;color:var(--slate);margin-top:4px"></div>
+    </div>
+    <button class="btn btn-secondary" onclick="go('upload')">← New Audit</button>
+  </div>
+
+  <!-- Risk banner -->
+  <div id="risk-banner" class="risk-banner"></div>
+
+  <!-- Stats -->
+  <div class="g4" id="ov-stats"></div>
+
+  <!-- Gauge + Outcome chart -->
+  <div class="g2">
+    <div class="card">
+      <h3>Bias Risk Score</h3>
+      <div class="gauge-wrap">
+        <canvas id="gauge-cv" width="220" height="120" role="img" aria-label="Bias risk gauge" style="max-width:220px"></canvas>
+        <div class="gauge-num" id="gauge-n">–</div>
+        <div style="font-size:12px;color:var(--slate);margin-bottom:8px">out of 100</div>
+        <span class="badge" id="gauge-b">–</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Positive outcome rate by demographic group</h3>
+      <p style="font-size:12px;color:var(--slate);margin-bottom:12px">Blue = most advantaged · Red = most disadvantaged</p>
+      <div style="position:relative;height:210px"><canvas id="oc-chart" role="img" aria-label="Outcome rates by group"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Summary table -->
+  <div class="card">
+    <h3>Per-attribute severity</h3>
+    <table class="tbl" id="attr-tbl">
+      <thead><tr><th>Attribute</th><th>Data Bias</th><th>Model Bias</th><th>Disparate Impact</th><th>Parity Gap</th><th>Most Disadvantaged</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════ PAGE: DATA BIAS ═════════════════════════════════════════ -->
+<div id="pg-data" class="page" style="display:none">
+  <div class="sec-head">
+    <div>
+      <h1>Dataset Bias</h1>
+      <p style="font-size:13px;color:var(--slate);margin-top:4px;max-width:600px">Discrimination found in the raw training data — before any model is involved. Historical bias in data directly trains AI systems to discriminate.</p>
+    </div>
+  </div>
+  <div id="data-body"></div>
+</div>
+
+<!-- ════ PAGE: MODEL BIAS ════════════════════════════════════════ -->
+<div id="pg-model" class="page" style="display:none">
+  <div class="sec-head">
+    <div>
+      <h1>Model Bias</h1>
+      <p style="font-size:13px;color:var(--slate);margin-top:4px;max-width:600px">The model's actual predictions audited across demographic groups. A model that amplifies historical bias causes real harm to real people.</p>
+    </div>
+  </div>
+  <div id="mdl-info" class="mi-row"></div>
+  <div id="model-body"></div>
+</div>
+
+<!-- ════ PAGE: MITIGATION ════════════════════════════════════════ -->
+<div id="pg-mit" class="page" style="display:none">
+  <div class="sec-head">
+    <div>
+      <h1>Bias Mitigation</h1>
+      <p style="font-size:13px;color:var(--slate);margin-top:4px;max-width:600px">Three evidence-based strategies are applied server-side. Compare the results to choose what to deploy.</p>
+    </div>
+    <button class="btn btn-primary" id="mit-btn" onclick="runMit()"><span id="mit-txt">▶ Run Mitigation</span></button>
+  </div>
+  <div id="mit-body">
+    <div class="alert info">Click <strong>Run Mitigation</strong> to apply all three strategies on your server (Step 4 of the pipeline).</div>
+  </div>
+</div>
+
+<!-- ════ PAGE: REPORT ════════════════════════════════════════════ -->
+<div id="pg-report" class="page" style="display:none">
+  <div class="sec-head">
+    <h1>Audit Report</h1>
+  </div>
+  <div id="rep-body"></div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════
+const API = 'http://localhost:5050';
+const TOPBAR_TITLES = {upload:'Upload & Configure',overview:'Audit Overview',data:'Dataset Bias',model:'Model Bias',mit:'Mitigation Strategies',report:'Audit Report'};
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+const S = {
+  sid:           null,
+  cols:          [],
+  sensAuto:      [],
+  sensSelected:  [],
+  targetCol:     '',
+  orgName:       '',
+  domain:        '',
+  modelTab:      'train',
+  algorithm:     'random_forest',
+  modelUploaded: false,
+  auditResult:   null,
+  mitResult:     null,
+};
+let charts = {};
+
+// Domain → outcome keyword hints
+const DOMAIN_TARGETS = {
+  loan:['approved','loan','credit','granted','default'],
+  hiring:['hired','selected','offered','passed','recruited'],
+  medical:['diagnosed','positive','outcome','readmit','survival'],
+  criminal:['recidivism','recidivate','convicted','reoffend'],
+  housing:['approved','granted','evicted','sold'],
+  education:['admitted','passed','graduated','scholarship'],
+};
+
+// ═══════════════════════════════════════════════════════════
+// API WRAPPERS
+// ═══════════════════════════════════════════════════════════
+async function GET(path)       { const r=await fetch(API+path); if(!r.ok){const e=await r.json().catch(()=>({error:r.statusText}));throw new Error(e.error||r.statusText)} return r.json(); }
+async function POST(path,body) { const r=await fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok){const e=await r.json().catch(()=>({error:r.statusText}));throw new Error(e.error||r.statusText)}return r.json();}
+async function UPLOAD(path,fd) { const r=await fetch(API+path,{method:'POST',body:fd});if(!r.ok){const e=await r.json().catch(()=>({error:r.statusText}));throw new Error(e.error||r.statusText)}return r.json();}
+
+// ═══════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════
+const PAGES=['upload','overview','data','model','mit','report'];
+function go(p){
+  PAGES.forEach(id=>{
+    document.getElementById('pg-'+id).style.display = id===p?'block':'none';
+    document.getElementById('nb-'+id).classList.toggle('on',id===p);
+  });
+  document.getElementById('top-title').textContent = TOPBAR_TITLES[p]||p;
+  if(p==='overview'&&S.auditResult) renderOverview();
+  if(p==='data'    &&S.auditResult) renderDataBias();
+  if(p==='model'   &&S.auditResult) renderModelBias();
+  if(p==='mit'     &&S.auditResult) renderMitPage();
+  if(p==='report'  &&S.auditResult) renderReport();
+}
+
+// ═══════════════════════════════════════════════════════════
+// STEPS
+// ═══════════════════════════════════════════════════════════
+function setStep(n){for(let i=1;i<=4;i++){document.getElementById('s'+i).className='step '+(i<n?'done':i===n?'active':'wait');}}
+
+// ═══════════════════════════════════════════════════════════
+// DOMAIN PILLS
+// ═══════════════════════════════════════════════════════════
+function setDomain(el,d){
+  document.querySelectorAll('.domain-pill').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on'); S.domain=d;
+  // If data already loaded, smart-select target column
+  if(S.cols.length && DOMAIN_TARGETS[d]){
+    const hints = DOMAIN_TARGETS[d];
+    const match = S.cols.find(c=>hints.some(h=>c.toLowerCase().includes(h)));
+    if(match){ document.getElementById('tgt').value=match; S.targetCol=match;
+      document.getElementById('tgt-hint').textContent=`Auto-selected based on domain: "${match}"`; }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════
+function switchTab(t){
+  S.modelTab=t;
+  document.getElementById('tab-tr').classList.toggle('on',t==='train');
+  document.getElementById('tab-ex').classList.toggle('on',t==='ext');
+  document.getElementById('panel-train').style.display=t==='train'?'block':'none';
+  document.getElementById('panel-ext').style.display=t==='ext'?'block':'none';
+}
+
+// ═══════════════════════════════════════════════════════════
+// API HEALTH + LOAD ALGORITHMS
+// ═══════════════════════════════════════════════════════════
+async function checkApi(){
+  const badge=document.getElementById('top-api-badge');
+  const banner=document.getElementById('api-banner');
+  try{
+    await GET('/api/health');
+    badge.innerHTML='<span style="color:var(--green)">● API Online</span>';
+    banner.innerHTML='';
+    // Load algorithm list
+    const d=await GET('/api/algorithms');
+    const sel=document.getElementById('algo');
+    sel.innerHTML=d.algorithms.map(a=>`<option value="${a.key}" ${a.key==='random_forest'?'selected':''}>${a.label}</option>`).join('');
+    S.algorithm=sel.value;
+    sel.onchange=()=>S.algorithm=sel.value;
+  } catch{
+    badge.innerHTML='<span style="color:var(--red)">● API Offline</span>';
+    banner.innerHTML=`<div class="alert err">
+      <strong>Cannot reach the API at ${API}</strong><br>
+      Start the server first: <code style="font-family:monospace">python backend/api/app.py</code>
+    </div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAG & DROP
+// ═══════════════════════════════════════════════════════════
+function dzEv(e,on){e.preventDefault();document.getElementById('dz').classList.toggle('drag',!!on)}
+function dropCSV(e){e.preventDefault();document.getElementById('dz').classList.remove('drag');if(e.dataTransfer.files[0])handleCSV(e.dataTransfer.files[0]);}
+function uploadCSV(e){if(e.target.files[0])handleCSV(e.target.files[0]);}
+
+// ═══════════════════════════════════════════════════════════
+// UPLOAD CSV  →  POST /api/upload
+// ═══════════════════════════════════════════════════════════
+async function handleCSV(file){
+  setStat(`Uploading ${file.name}…`);
+  try{
+    const fd=new FormData(); fd.append('file',file);
+    const d=await UPLOAD('/api/upload',fd);
+    applyMeta(d);
+    setStat(`<strong>${d.shape.rows.toLocaleString()} rows</strong> · ${file.name}`);
+  }catch(err){showErr('run-err','Upload failed: '+err.message);}
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOAD SAMPLE  →  GET /api/sample
+// ═══════════════════════════════════════════════════════════
+async function loadSample(){
+  setStat('Loading sample…');
+  try{
+    const d=await GET('/api/sample');
+    applyMeta(d);
+    if(d.suggested_target){document.getElementById('tgt').value=d.suggested_target;S.targetCol=d.suggested_target;}
+    // Auto-select loan domain
+    document.querySelectorAll('.domain-pill').forEach(p=>{if(p.textContent.includes('Loan'))p.classList.add('on');else p.classList.remove('on');});
+    S.domain='loan';
+    setStat(`<strong>${d.shape.rows.toLocaleString()} rows</strong> · Sample: loan_data.csv`);
+  }catch(err){
+    document.getElementById('api-banner').innerHTML=`<div class="alert err">Failed: ${err.message} — Is the Flask API running at ${API}?</div>`;
+  }
+}
+
+// ── Populate config form ──────────────────────────────────
+function applyMeta(d){
+  S.sid=d.session_id; S.cols=d.columns;
+  S.sensAuto=d.auto_detected_sensitive||[];
+  S.sensSelected=S.sensAuto.filter(c=>c!=='age');
+
+  // Target dropdown
+  const sel=document.getElementById('tgt');
+  sel.innerHTML=d.columns.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const OUTCOME=['hired','approved','outcome','label','target','result','decision','status','diagnosis','convicted','loan_approved','credit','grant','selected','passed'];
+  const best=d.columns.find(c=>OUTCOME.some(h=>c.toLowerCase().includes(h)))||d.columns[d.columns.length-1];
+  sel.value=best; S.targetCol=best;
+  sel.onchange=()=>{S.targetCol=sel.value;document.getElementById('tgt-hint').textContent='';};
+
+  // Dataset badge
+  document.getElementById('ds-badge').textContent=`${d.shape.rows.toLocaleString()} rows × ${d.shape.cols} cols`;
+
+  // Sensitive toggles
+  const tags=document.getElementById('sens-tags');
+  tags.innerHTML='';
+  if(S.sensAuto.length===0){
+    tags.innerHTML=`<span style="font-size:12px;color:var(--slate)">No sensitive columns auto-detected. They may have non-standard names.</span>`;
+  }
+  S.sensAuto.forEach(col=>{
+    const btn=document.createElement('button');
+    btn.textContent=col;
+    let on=S.sensSelected.includes(col);
+    const paint=()=>{
+      btn.style.cssText=`padding:5px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1.5px solid ${on?'var(--ink)':'#E5E9F0'};background:${on?'var(--ink)':'var(--white)'};color:${on?'var(--white)':'var(--slate)'};transition:all .14s;font-family:'Outfit',sans-serif`;
+    };
+    paint();
+    btn.onclick=()=>{on=!on;paint();if(on)S.sensSelected.push(col);else S.sensSelected=S.sensSelected.filter(c=>c!==col);};
+    tags.appendChild(btn);
+  });
+
+  document.getElementById('cfg').style.display='block';
+  setStep(2);
+}
+
+// ═══════════════════════════════════════════════════════════
+// UPLOAD EXTERNAL MODEL  →  POST /api/upload_model
+// ═══════════════════════════════════════════════════════════
+async function uploadModel(e){
+  const file=e.target.files[0]; if(!file)return;
+  const stat=document.getElementById('mdl-stat');
+  stat.innerHTML='<span class="spin">⟳</span> Uploading model…';
+  try{
+    if(!S.sid)throw new Error('Upload a dataset first.');
+    const fd=new FormData(); fd.append('session_id',S.sid); fd.append('file',file);
+    await UPLOAD('/api/upload_model',fd);
+    S.modelUploaded=true;
+    stat.innerHTML=`<span class="badge fair" style="font-size:12px">✓ Model uploaded: ${file.name}</span>
+      <span style="margin-left:8px;color:var(--slate);font-size:12px">Will be audited AS-IS — no retraining</span>`;
+  }catch(err){
+    S.modelUploaded=false;
+    stat.innerHTML=`<span class="badge severe">✗ ${err.message}</span>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// RUN AUDIT  →  POST /api/audit
+// ═══════════════════════════════════════════════════════════
+async function runAudit(){
+  clearEl('run-err');
+  S.orgName=document.getElementById('org').value.trim()||'Organization';
+  if(!S.sid)               return showErr('run-err','No dataset loaded. Upload data first.');
+  if(!S.targetCol)         return showErr('run-err','Select a target column.');
+  if(!S.sensSelected.length)return showErr('run-err','Select at least one protected attribute to audit.');
+  if(S.modelTab==='ext'&&!S.modelUploaded)return showErr('run-err','Upload your .pkl model file, or switch to "Train a new model".');
+
+  setBtnL('run-btn','run-txt','Running audit…');
+  setStep(3); setStat('Running Steps 1–3…');
+
+  try{
+    const data=await POST('/api/audit',{
+      session_id:S.sid, target_col:S.targetCol,
+      sensitive_cols:S.sensSelected,
+      algorithm:S.modelTab==='train'?S.algorithm:'random_forest',
+      org_name:S.orgName,
+    });
+    S.auditResult=data;
+    setStep(4);
+    const lvl=data.summary.risk_level;
+    const score=data.summary.risk_score;
+    setStat(`<strong>${S.orgName}</strong> · Risk: <strong>${lvl}</strong> (${score}/100)`);
+    go('overview');
+  }catch(err){
+    showErr('run-err',`<strong>Audit failed:</strong> ${err.message}`);
+    setStep(2);
+  }finally{ resetBtn('run-btn','run-txt','🔍 Run Full Audit'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// RUN MITIGATION  →  POST /api/mitigate
+// ═══════════════════════════════════════════════════════════
+async function runMit(){
+  if(!S.auditResult)return;
+  setBtnL('mit-btn','mit-txt','Running…');
+  document.getElementById('mit-body').innerHTML=`<div class="alert info"><span class="spin">⟳</span> Running 3 bias mitigation strategies on the server…</div>`;
+  try{
+    const d=await POST('/api/mitigate',{session_id:S.sid});
+    S.mitResult=d; renderMitResults(d);
+  }catch(err){
+    document.getElementById('mit-body').innerHTML=`<div class="alert err">Mitigation failed: ${err.message}</div>`;
+  }finally{ resetBtn('mit-btn','mit-txt','▶ Run Mitigation'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER: OVERVIEW
+// ═══════════════════════════════════════════════════════════
+function renderOverview(){
+  const r=S.auditResult, sum=r.summary, mi=r.model_info||{};
+  const lvl=sum.risk_level;
+  const rc={HIGH:'#DC2626',MEDIUM:'#D97706',LOW:'#059669'}[lvl];
+
+  document.getElementById('ov-meta').innerHTML=
+    `<strong>${S.orgName}</strong> &nbsp;·&nbsp; Model: ${mi.algorithm||'?'} &nbsp;·&nbsp; Source: ${mi.source||'?'} &nbsp;·&nbsp; Accuracy: ${mi.accuracy!=null?(mi.accuracy*100).toFixed(1)+'%':'?'}`;
+
+  // Risk banner
+  const rb=document.getElementById('risk-banner');
+  rb.className=`risk-banner ${lvl.toLowerCase()}`;
+  rb.innerHTML=`
+    <div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;margin-bottom:4px">${lvl} RISK</div>
+      <div style="font-size:15px;font-weight:600">${sum.recommendation}</div>
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div style="font-family:'DM Serif Display',serif;font-size:42px;color:${rc};line-height:1">${sum.risk_score}</div>
+      <div style="font-size:11px;color:var(--slate)">/ 100 risk score</div>
+    </div>`;
+
+  // Stats
+  document.getElementById('ov-stats').innerHTML=`
+    <div class="stat"><div class="stat-lbl">Bias Risk</div><div class="stat-val" style="color:${rc}">${sum.risk_score}/100</div><div class="stat-sub">${lvl} risk level</div></div>
+    <div class="stat"><div class="stat-lbl">Total Flags</div><div class="stat-val">${sum.total_flags}</div><div class="stat-sub">issues detected</div></div>
+    <div class="stat"><div class="stat-lbl">Severe Biases</div><div class="stat-val" style="color:var(--red)">${sum.severe_attributes.length}</div><div class="stat-sub">attributes</div></div>
+    <div class="stat"><div class="stat-lbl">Model Accuracy</div><div class="stat-val">${mi.accuracy!=null?(mi.accuracy*100).toFixed(1)+'%':'?'}</div><div class="stat-sub">${mi.mode==='external'?'your model':'trained here'}</div></div>`;
+
+  // Gauge
+  drawGauge(sum.risk_score, rc);
+  document.getElementById('gauge-n').textContent=sum.risk_score;
+  document.getElementById('gauge-n').style.color=rc;
+  const gb=document.getElementById('gauge-b');
+  gb.textContent=lvl+' RISK'; gb.className='badge '+lvl.toLowerCase();
+
+  // Outcome chart
+  drawOutcomeChart(r.dataset_bias);
+
+  // Attr table
+  const tbody=document.querySelector('#attr-tbl tbody');
+  tbody.innerHTML='';
+  S.sensSelected.forEach(col=>{
+    const db=r.dataset_bias[col],mb=r.model_bias[col]; if(!db||!mb)return;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><strong>${col}</strong></td>
+      <td><span class="badge ${db.severity.toLowerCase()}">${db.severity}</span></td>
+      <td><span class="badge ${mb.severity.toLowerCase()}">${mb.severity}</span></td>
+      <td style="font-family:'DM Mono',monospace">${mb.disparate_impact_ratio.toFixed(3)}
+        <span style="color:${mb.disparate_impact_ratio<0.8?'var(--red)':'var(--green)'};font-weight:700;margin-left:4px">${mb.disparate_impact_ratio<0.8?'✗':'✓'}</span></td>
+      <td style="font-family:'DM Mono',monospace">${(mb.demographic_parity_difference*100).toFixed(1)}%</td>
+      <td style="color:var(--red);font-weight:500">${mb.most_disadvantaged_group||'–'}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function drawGauge(score,color){
+  const cv=document.getElementById('gauge-cv'),ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,220,120);
+  ctx.beginPath();ctx.arc(110,110,84,Math.PI,2*Math.PI);
+  ctx.strokeStyle='#EEF1F7';ctx.lineWidth=18;ctx.stroke();
+  const end=Math.PI+(Math.min(score,100)/100)*Math.PI;
+  ctx.beginPath();ctx.arc(110,110,84,Math.PI,end);
+  ctx.strokeStyle=color;ctx.lineWidth=18;ctx.lineCap='round';ctx.stroke();
+}
+
+function drawOutcomeChart(db){
+  if(charts.oc)charts.oc.destroy();
+  const labels=[],data=[],colors=[];
+  S.sensSelected.forEach(col=>{
+    const r=db[col];if(!r)return;
+    Object.entries(r.outcome_rates||{}).forEach(([g,v])=>{
+      labels.push(`${col}: ${g}`);
+      data.push(+(v*100).toFixed(1));
+      colors.push(g===r.most_advantaged_group?'#2563EB':g===r.least_advantaged_group?'#DC2626':'#94A3B8');
+    });
+  });
+  charts.oc=new Chart(document.getElementById('oc-chart'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Positive outcome rate (%)',data,backgroundColor:colors,borderRadius:6,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,max:100,grid:{color:'#EEF1F7'},ticks:{color:'#8892A4',callback:v=>v+'%'}},
+              x:{grid:{display:false},ticks:{color:'#8892A4',font:{size:10}}}}}
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER: DATA BIAS
+// ═══════════════════════════════════════════════════════════
+function renderDataBias(){
+  const el=document.getElementById('data-body');el.innerHTML='';
+  S.sensSelected.forEach(col=>{
+    const r=S.auditResult.dataset_bias[col];if(!r)return;
+    el.appendChild(buildDataCard(col,r));
+  });
+}
+
+function buildDataCard(col,r){
+  const card=document.createElement('div');
+  card.className='card';
+  card.style.borderLeft=`4px solid ${sevColor(r.severity)}`;
+
+  const bars=Object.entries(r.outcome_rates||{}).map(([g,v])=>{
+    const pct=(v*100).toFixed(1);
+    const c=g===r.most_advantaged_group?'#2563EB':g===r.least_advantaged_group?'#DC2626':'#8892A4';
+    return `<div class="bar-row">
+      <span class="bar-lbl" title="${g}">${g}</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:${c}"></div></div>
+      <span class="bar-pct" style="color:${c}">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  const flags=(r.flags||[]).map(f=>{
+    const cls={HIGH:'high',MEDIUM:'medium',INFO:'info'}[f.severity]||'info';
+    const icon={HIGH:'⚠',MEDIUM:'●',INFO:'ℹ'}[f.severity]||'ℹ';
+    return `<div class="flag ${cls}"><span class="flag-icon">${icon}</span><div><strong>[${f.type}]</strong> ${f.message}</div></div>`;
+  }).join('');
+
+  card.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <h2 style="margin:0;font-family:'DM Serif Display',serif">Protected attribute: <em>${col}</em></h2>
+      <span class="badge ${r.severity.toLowerCase()}">${r.severity}</span>
+    </div>
+    <div class="g2">
+      <div>
+        <h3>Historical outcome rate by group</h3>
+        ${bars}
+        <div style="margin-top:10px;font-size:11px;color:var(--slate)">
+          Most advantaged: <strong style="color:var(--blue)">${r.most_advantaged_group}</strong> &nbsp;·&nbsp;
+          Most disadvantaged: <strong style="color:var(--red)">${r.least_advantaged_group}</strong>
+        </div>
+      </div>
+      <div>
+        <h3>Fairness metric results</h3>
+        <table class="tbl">
+          <thead><tr><th>Metric</th><th>Value</th><th>Pass threshold</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Disparate Impact Ratio</td>
+                <td style="font-family:'DM Mono',monospace">${r.disparate_impact_ratio.toFixed(3)}</td>
+                <td>≥ 0.80</td>
+                <td class="${r.disparate_impact_ratio<0.8?'fail':'pass'}">${r.disparate_impact_ratio<0.8?'✗ FAIL':'✓ PASS'}</td></tr>
+            <tr><td>Statistical Parity Gap</td>
+                <td style="font-family:'DM Mono',monospace">${(r.statistical_parity_difference*100).toFixed(1)}%</td>
+                <td>≤ 10%</td>
+                <td class="${r.statistical_parity_difference>0.1?'fail':'pass'}">${r.statistical_parity_difference>0.1?'✗ FAIL':'✓ PASS'}</td></tr>
+            <tr><td>Bias statistically confirmed?</td>
+                <td colspan="2">${r.statistically_significant?'Yes (p &lt; 0.05)':'No'}</td>
+                <td class="${r.statistically_significant?'fail':'pass'}">${r.statistically_significant?'SIGNIFICANT':'NOT SIG'}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    ${flags?`<div class="div"></div><h3>Flags raised (${(r.flags||[]).length})</h3>${flags}`:''}`;
+  return card;
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER: MODEL BIAS
+// ═══════════════════════════════════════════════════════════
+function renderModelBias(){
+  const mi=S.auditResult.model_info||{};
+  document.getElementById('mdl-info').innerHTML=`
+    <span class="badge blue">Model: ${mi.algorithm||'?'}</span>
+    <span class="badge blue">Source: ${mi.source||'?'}</span>
+    <span class="badge blue">Accuracy: ${mi.accuracy!=null?(mi.accuracy*100).toFixed(1)+'%':'?'}</span>
+    <span class="badge ${mi.mode==='external'?'info':'fair'}">${mi.mode==='external'?'Your own model — no retraining':'Trained for this audit'}</span>`;
+
+  const el=document.getElementById('model-body');el.innerHTML='';
+  S.sensSelected.forEach(col=>{
+    const r=S.auditResult.model_bias[col];if(!r)return;
+    el.appendChild(buildModelCard(col,r));
+  });
+}
+
+function buildModelCard(col,r){
+  const card=document.createElement('div');
+  card.className='card';
+  card.style.borderLeft=`4px solid ${sevColor(r.severity)}`;
+
+  if(r.error){
+    card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2 style="margin:0;font-family:'DM Serif Display',serif">Attribute: <em>${col}</em></h2><span class="badge fair">FAIR</span></div>
+      <div class="alert warn">${r.error}</div>`;
+    return card;
+  }
+
+  const gm=r.group_metrics||{};
+  const grpRows=Object.entries(gm).map(([g,m])=>`
+    <tr><td><strong>${g}</strong></td>
+        <td style="font-family:'DM Mono',monospace">${(m.positive_prediction_rate*100).toFixed(1)}%</td>
+        <td style="font-family:'DM Mono',monospace">${(m.true_positive_rate*100).toFixed(1)}%</td>
+        <td style="font-family:'DM Mono',monospace">${(m.false_positive_rate*100).toFixed(1)}%</td>
+        <td style="font-family:'DM Mono',monospace">${(m.accuracy*100).toFixed(1)}%</td>
+        <td style="color:var(--slate)">${m.n_samples}</td></tr>`).join('');
+
+  const flags=(r.flags||[]).map(f=>{
+    const cls={HIGH:'high',MEDIUM:'medium',INFO:'info'}[f.severity]||'info';
+    const icon={HIGH:'⚠',MEDIUM:'●',INFO:'ℹ'}[f.severity]||'ℹ';
+    return `<div class="flag ${cls}"><span class="flag-icon">${icon}</span><div><strong>[${f.type}]</strong> ${f.message}</div></div>`;
+  }).join('');
+
+  card.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <h2 style="margin:0;font-family:'DM Serif Display',serif">Protected attribute: <em>${col}</em></h2>
+      <span class="badge ${r.severity.toLowerCase()}">${r.severity}</span>
+    </div>
+    <div class="g2" style="margin-bottom:16px">
+      <div>
+        <h3>Model predictions by group</h3>
+        <table class="tbl">
+          <thead><tr><th>Group</th><th>Pred. Rate</th><th>TPR</th><th>FPR</th><th>Accuracy</th><th>N</th></tr></thead>
+          <tbody>${grpRows}</tbody>
+        </table>
+        <div style="margin-top:9px;font-size:11px;color:var(--slate)">
+          Reference: <strong style="color:var(--blue)">${r.reference_group||'–'}</strong> &nbsp;·&nbsp;
+          Most disadvantaged: <strong style="color:var(--red)">${r.most_disadvantaged_group||'–'}</strong>
+          ${r.bin_note?`<br>${r.bin_note}`:''}
+        </div>
+      </div>
+      <div>
+        <h3>Fairness metric results</h3>
+        <table class="tbl">
+          <thead><tr><th>Metric</th><th>Value</th><th>Threshold</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Disparate Impact</td>
+                <td style="font-family:'DM Mono',monospace">${r.disparate_impact_ratio.toFixed(3)}</td>
+                <td>≥ 0.80</td>
+                <td class="${r.disparate_impact_ratio<0.8?'fail':'pass'}">${r.disparate_impact_ratio<0.8?'✗ FAIL':'✓ PASS'}</td></tr>
+            <tr><td>Demographic Parity</td>
+                <td style="font-family:'DM Mono',monospace">${(r.demographic_parity_difference*100).toFixed(1)}%</td>
+                <td>≤ 10%</td>
+                <td class="${r.demographic_parity_difference>0.1?'fail':'pass'}">${r.demographic_parity_difference>0.1?'✗ FAIL':'✓ PASS'}</td></tr>
+            <tr><td>Equalized Odds</td>
+                <td style="font-family:'DM Mono',monospace">${(r.equalized_odds_difference*100).toFixed(1)}%</td>
+                <td>≤ 10%</td>
+                <td class="${r.equalized_odds_difference>0.1?'fail':'pass'}">${r.equalized_odds_difference>0.1?'✗ FAIL':'✓ PASS'}</td></tr>
+            <tr><td>Accuracy Equality</td>
+                <td style="font-family:'DM Mono',monospace">${(r.accuracy_equality_difference*100).toFixed(1)}%</td>
+                <td>≤ 5%</td>
+                <td class="${r.accuracy_equality_difference>0.05?'fail':'pass'}">${r.accuracy_equality_difference>0.05?'✗ FAIL':'✓ PASS'}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    ${flags?`<h3>Flags raised (${(r.flags||[]).length})</h3>${flags}`:''}`;
+  return card;
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER: MITIGATION
+// ═══════════════════════════════════════════════════════════
+function renderMitPage(){if(S.mitResult)renderMitResults(S.mitResult);}
+
+function renderMitResults(data){
+  const best=data.recommended_strategy, mits=data.mitigation_results;
+  const NAMES={reweighting:'Pre-Processing: Reweighting',resampling:'Pre-Processing: Resampling',threshold_adjustment:'Post-Processing: Threshold Adjustment'};
+  const DESCS={
+    reweighting:'Assigns higher training weights to underrepresented/disadvantaged groups, forcing the model to learn better representations for all demographics.',
+    resampling:'Oversamples disadvantaged groups in the training set until each demographic is equally represented — the model learns from equal examples.',
+    threshold_adjustment:'Lowers the decision threshold for disadvantaged groups post-training, equalising positive prediction rates across demographics.',
+  };
+  const WHEN={
+    reweighting:'Best when: data imbalance is the primary cause of bias.',
+    resampling:'Best when: small minority groups need more training examples.',
+    threshold_adjustment:'Best when: you need a quick fix without retraining, or the model is an external upload.',
+  };
+
+  let html='';
+  Object.entries(mits).forEach(([key,res])=>{
+    const isRec=key===best;
+    const fi=res.fairness_improvement||{};
+    const fiRows=Object.entries(fi).map(([col,s])=>`
+      <tr><td>${col}</td>
+          <td style="font-family:'DM Mono',monospace">${(s.demographic_parity_gap*100).toFixed(1)}%</td>
+          <td style="font-family:'DM Mono',monospace">${s.disparate_impact_ratio.toFixed(3)}</td>
+          <td><span class="badge ${s.severity_after_mitigation.toLowerCase()}">${s.severity_after_mitigation}</span></td></tr>`).join('');
+    html+=`
+      <div class="card" style="border-left:4px solid ${isRec?'var(--accent)':'#E5E9F0'}">
+        ${isRec?'<div style="font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">★ Recommended Strategy</div>':''}
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+          <div>
+            <h2 style="margin-bottom:4px;font-family:'DM Serif Display',serif">${NAMES[key]}</h2>
+            <p style="font-size:13px;color:var(--slate);max-width:480px;margin-bottom:6px">${DESCS[key]}</p>
+            <p style="font-size:11px;color:var(--slate);font-style:italic">${WHEN[key]}</p>
+          </div>
+          <div style="text-align:right;flex-shrink:0;padding:10px 16px;background:var(--fog);border-radius:var(--radius)">
+            <div style="font-size:11px;color:var(--slate);margin-bottom:2px">Accuracy after</div>
+            <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700">${(res.overall_accuracy*100).toFixed(1)}%</div>
+          </div>
+        </div>
+        <h3>Fairness gaps after applying this strategy</h3>
+        <table class="tbl">
+          <thead><tr><th>Attribute</th><th>Parity Gap</th><th>Disparate Impact</th><th>Severity</th></tr></thead>
+          <tbody>${fiRows}</tbody>
+        </table>
+      </div>`;
+  });
+  document.getElementById('mit-body').innerHTML=html||'<div class="alert err">No results returned.</div>';
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER: REPORT
+// ═══════════════════════════════════════════════════════════
+function renderReport(){
+  const r=S.auditResult,sum=r.summary,mi=r.model_info||{};
+  const lvl=sum.risk_level;
+  const rc={HIGH:'var(--red)',MEDIUM:'var(--amber)',LOW:'var(--green)'}[lvl];
+
+  const attrRows=S.sensSelected.map(col=>{
+    const db=r.dataset_bias[col],mb=r.model_bias[col];if(!db||!mb)return'';
+    return`<tr>
+      <td><strong>${col}</strong></td>
+      <td><span class="badge ${db.severity.toLowerCase()}">${db.severity}</span></td>
+      <td><span class="badge ${mb.severity.toLowerCase()}">${mb.severity}</span></td>
+      <td style="font-family:'DM Mono',monospace">${mb.disparate_impact_ratio.toFixed(3)}</td>
+      <td style="font-family:'DM Mono',monospace">${(mb.demographic_parity_difference*100).toFixed(1)}%</td>
+      <td style="color:var(--red);font-weight:500">${mb.most_disadvantaged_group||'–'}</td></tr>`;
+  }).join('');
+
+  const RECS=[
+    lvl==='HIGH'?['Immediate action required','Do not deploy this system. Current bias levels likely violate anti-discrimination law (ECOA, Title VII, GDPR, Equality Act 2010, CCPA). Seek legal review immediately.']:null,
+    ['Apply the recommended mitigation','Run the strategy marked ★ on the Mitigation page. Re-run this full audit afterwards to confirm improvement before deployment.'],
+    ['Establish bias monitoring','Bias drifts as data distributions change. Implement quarterly automated re-audits using this pipeline in your CI/CD process.'],
+    ['Create a human appeals process','Every individual affected by an automated decision must have a clear right to human review and appeal. Document this process publicly.'],
+    ['Data collection review','Audit your historical data collection practices. Biased data produces biased models regardless of the algorithm.'],
+    ['Legal and compliance review','Consult qualified legal counsel regarding exposure under applicable anti-discrimination law in every jurisdiction where the system operates.'],
+  ].filter(Boolean);
+
+  document.getElementById('rep-body').innerHTML=`
+    <!-- Summary card -->
+    <div class="card" style="border-left:4px solid ${rc};margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:18px">
+        <div style="flex:1">
+          <div class="hero-eyebrow" style="margin-bottom:8px">${S.orgName} · AI Bias Audit</div>
+          <h1 style="font-size:22px;margin-bottom:8px">${sum.recommendation}</h1>
+          <div style="font-size:13px;color:var(--slate)">
+            Model: <strong>${mi.algorithm||'?'}</strong> ·
+            Source: ${mi.source||'?'} ·
+            Accuracy: ${mi.accuracy!=null?(mi.accuracy*100).toFixed(1)+'%':'?'} ·
+            Domain: ${S.domain||'not specified'}
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:'DM Serif Display',serif;font-size:52px;color:${rc};line-height:1">${sum.risk_score}</div>
+          <div style="font-size:11px;color:var(--slate);margin-bottom:8px">risk score / 100</div>
+          <span class="badge ${lvl.toLowerCase()}">${lvl} RISK</span>
+        </div>
+      </div>
+      <div class="div"></div>
+      <div class="g4">
+        <div><div class="stat-lbl">Total Flags</div><div class="stat-val">${sum.total_flags}</div></div>
+        <div><div class="stat-lbl">Severe</div><div class="stat-val" style="color:var(--red)">${sum.severe_attributes.length}</div></div>
+        <div><div class="stat-lbl">Moderate</div><div class="stat-val" style="color:var(--amber)">${sum.moderate_attributes.length}</div></div>
+        <div><div class="stat-lbl">Checked</div><div class="stat-val" style="color:var(--blue)">${S.sensSelected.length}</div></div>
+      </div>
+    </div>
+
+    <!-- Attribute table -->
+    <div class="card" style="margin-bottom:20px">
+      <h2>Attribute Severity Summary</h2>
+      <table class="tbl">
+        <thead><tr><th>Attribute</th><th>Data Bias</th><th>Model Bias</th><th>Disparate Impact</th><th>Parity Gap</th><th>Most Disadvantaged Group</th></tr></thead>
+        <tbody>${attrRows}</tbody>
+      </table>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="card" style="margin-bottom:20px">
+      <h2>Recommendations</h2>
+      ${RECS.map((rec,i)=>`
+        <div style="background:var(--fog);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;border-left:3px solid var(--accent)">
+          <div style="font-weight:600;color:var(--ink);margin-bottom:4px">${i+1}. ${rec[0]}</div>
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">${rec[1]}</div>
+        </div>`).join('')}
+    </div>
+
+    <!-- PDF download -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
+        <div>
+          <h2 style="margin-bottom:4px">Download Professional PDF Report</h2>
+          <p style="font-size:13px;color:var(--slate)">
+            Generated server-side by <code style="font-family:monospace;font-size:12px">report_generator.py</code>
+            with <strong>${S.orgName}</strong> on the cover. Includes all metrics, tables, flags and recommendations.
+          </p>
+        </div>
+        <a href="${API}/api/report/${S.sid}" target="_blank" class="btn btn-green" style="text-decoration:none">⬇ Download PDF</a>
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+function sevColor(s){return{SEVERE:'var(--red)',MODERATE:'var(--amber)',FAIR:'var(--green)'}[s]||'#E5E9F0';}
+function setStat(html){document.getElementById('sb-stat').innerHTML=html;}
+function showErr(id,msg){document.getElementById(id).innerHTML=`<div class="alert err" style="margin-top:12px">${msg}</div>`;}
+function clearEl(id){document.getElementById(id).innerHTML='';}
+function setBtnL(bid,tid,msg){document.getElementById(bid).disabled=true;document.getElementById(tid).innerHTML=`<span class="spin">⟳</span> ${msg}`;}
+function resetBtn(bid,tid,lbl){document.getElementById(bid).disabled=false;document.getElementById(tid).textContent=lbl;}
+
+// ═══════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════
+go('upload');
+checkApi();
+</script>
+</body>
+</html>
