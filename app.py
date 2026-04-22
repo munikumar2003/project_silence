@@ -23,7 +23,7 @@ import os, sys, uuid, traceback
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
 
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
 
 from run_audit import run_pipeline, serialize, ALGORITHM_DISPLAY_NAMES
@@ -41,7 +41,9 @@ REPORT_DIR = os.path.join(ROOT, "reports_out");  os.makedirs(REPORT_DIR, exist_o
 #                algorithm, org_name, audit_result, mitigation_result}}
 SESSIONS = {}
 
-
+@app.route("/")
+def home():
+    return render_template("index.html")
 # ══════════════════════════════════════════════════════════════════════
 # HEALTH
 # ══════════════════════════════════════════════════════════════════════
