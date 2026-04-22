@@ -41,9 +41,6 @@ REPORT_DIR = os.path.join(ROOT, "reports_out");  os.makedirs(REPORT_DIR, exist_o
 #                algorithm, org_name, audit_result, mitigation_result}}
 SESSIONS = {}
 
-@app.route("/")
-def home():
-    return render_template("index.html")
 # ══════════════════════════════════════════════════════════════════════
 # HEALTH
 # ══════════════════════════════════════════════════════════════════════
@@ -314,7 +311,7 @@ def download_report(sid):
 # ══════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
     print("=" * 55)
-    print("  Bias Auditor API  →  http://localhost:5050")
+    print("  Bias Auditor API  →  http://localhost:8080")
     print("=" * 55)
     #app.run(debug=True, port=5050, use_reloader=False)
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5050)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
