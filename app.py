@@ -315,4 +315,4 @@ if __name__ == "__main__":
     print("  Bias Auditor API  →  http://localhost:5050")
     print("=" * 55)
     #app.run(debug=True, port=5050, use_reloader=False)
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5050)))
