@@ -20,7 +20,7 @@ Run:
 
 import os, sys, uuid, traceback
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)
 
 from flask import Flask, render_template, request, jsonify, send_file
@@ -33,9 +33,19 @@ from mitigation     import BiasMitigator
 app = Flask(__name__)
 CORS(app)
 
-UPLOAD_DIR = os.path.join(ROOT, "uploads");      os.makedirs(UPLOAD_DIR, exist_ok=True)
-MODEL_DIR  = os.path.join(ROOT, "models");       os.makedirs(MODEL_DIR,  exist_ok=True)
-REPORT_DIR = os.path.join(ROOT, "reports_out");  os.makedirs(REPORT_DIR, exist_ok=True)
+# Change these lines
+UPLOAD_DIR = "/tmp/uploads"
+MODEL_DIR  = "/tmp/models"
+REPORT_DIR = "/tmp/reports_out"
+
+# Keep the makedirs logic
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(MODEL_DIR,  exist_ok=True)
+os.makedirs(REPORT_DIR, exist_ok=True)
+
+# UPLOAD_DIR = os.path.join(ROOT, "uploads");      os.makedirs(UPLOAD_DIR, exist_ok=True)
+# MODEL_DIR  = os.path.join(ROOT, "models");       os.makedirs(MODEL_DIR,  exist_ok=True)
+# REPORT_DIR = os.path.join(ROOT, "reports_out");  os.makedirs(REPORT_DIR, exist_ok=True)
 
 # {session_id → {filepath, model_path, columns, sensitive_cols, target_col,
 #                algorithm, org_name, audit_result, mitigation_result}}
