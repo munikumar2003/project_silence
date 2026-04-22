@@ -184,7 +184,7 @@ def run_pipeline(
         result["mitigation_results"] = mitigation
 
         print("\n📄  STEP 6 — Generating PDF Report")
-        pdf_path = output_pdf or os.path.join(ROOT, "bias_audit_report.pdf")
+        pdf_path = output_pdf or os.path.join(ROOT, "/tmp/reports_out/bias_audit_report.pdf")
         from report_generator import BiasAuditReport
         BiasAuditReport(result, mitigation, org_name, pdf_path).generate()
         print(f"\n{'═'*60}\n  ✔ DONE  |  PDF → {pdf_path}\n{'═'*60}\n")
