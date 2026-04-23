@@ -116,8 +116,6 @@ fairsight/
 │   └── reports/
 │       └── report_generator.py     # Step 6: BiasAuditReport (ReportLab PDF)
 │
-├── frontend/
-│   └── dashboard.html              # Single-file UI (no build step)
 │
 ├── sample_data/
 │   ├── generate_sample.py          # Generates biased loan dataset
@@ -162,7 +160,7 @@ python app.py
 API runs at **http://localhost:5050**
 
 ### 4. Open the Dashboard
-
+Open the **https://github.com/munikumar2003/project_silence/frontend**
 Open `dashboard.html` in your browser. The dashboard connects to the API automatically and shows a live status indicator.
 
 ---
@@ -221,7 +219,7 @@ python run_audit.py \
 
 ## REST API Reference
 
-Base URL: `http://localhost:5050`
+Base URL: `http://localhost:8080`
 
 ### Endpoints
 
@@ -240,11 +238,11 @@ Base URL: `http://localhost:5050`
 
 ```bash
 # 1. Load sample dataset
-curl http://localhost:5050/api/sample
+curl http://localhost:8080/api/sample
 # Returns: { "session_id": "sample_ab12", "columns": [...], ... }
 
 # 2. Run audit
-curl -X POST http://localhost:5050/api/audit \
+curl -X POST http://localhost:8080/api/audit \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "sample_ab12",
@@ -255,28 +253,28 @@ curl -X POST http://localhost:5050/api/audit \
   }'
 
 # 3. Run mitigation
-curl -X POST http://localhost:5050/api/mitigate \
+curl -X POST http://localhost:8080/api/mitigate \
   -H "Content-Type: application/json" \
   -d '{ "session_id": "sample_ab12" }'
 
 # 4. Download PDF report
-curl http://localhost:5050/api/report/sample_ab12 -o audit_report.pdf
+curl http://localhost:8080/api/report/sample_ab12 -o audit_report.pdf
 ```
 
 ### Example: Upload Your Own CSV and Model
 
 ```bash
 # Upload CSV
-SESSION=$(curl -s -X POST http://localhost:5050/api/upload \
+SESSION=$(curl -s -X POST http://localhost:8080/api/upload \
   -F "file=@your_data.csv" | python3 -c "import sys,json; print(json.load(sys.stdin)['session_id'])")
 
 # Upload model
-curl -X POST http://localhost:5050/api/upload_model \
+curl -X POST http://localhost:8080/api/upload_model \
   -F "session_id=$SESSION" \
   -F "file=@your_model.pkl"
 
 # Audit
-curl -X POST http://localhost:5050/api/audit \
+curl -X POST http://localhost:8080/api/audit \
   -H "Content-Type: application/json" \
   -d "{
     \"session_id\": \"$SESSION\",
