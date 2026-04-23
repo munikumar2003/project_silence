@@ -51,6 +51,10 @@ os.makedirs(REPORT_DIR, exist_ok=True)
 #                algorithm, org_name, audit_result, mitigation_result}}
 SESSIONS = {}
 
+@app.route("/")
+def hello():
+    return jsonify({"status": "ok", "message": "Welcome to Bias Auditor API. Use /api/health, /api/upload, /api/audit, etc."})
+
 # ══════════════════════════════════════════════════════════════════════
 # HEALTH
 # ══════════════════════════════════════════════════════════════════════
