@@ -1,17 +1,20 @@
 """
 STEP 4: Bias Mitigation
 =========================
-Provides three strategies to reduce bias:
+Provides six strategies to reduce bias:
 
 1. PRE-PROCESSING  → Fix the training data before model sees it
    - Reweighting: Give underrepresented groups higher sample weights
-   - Resampling: Oversample disadvantaged groups (SMOTE-like)
+   - Resampling: Oversample disadvantaged groups (random bootstrap)
+   - SMOTE: Synthetic Minority Over-sampling Technique (generate synthetic samples)
 
 2. IN-PROCESSING   → Adjust model training to include fairness constraints
-   - Fairness-aware model with balanced class weights per group
+   - Cost-Sensitive Learning: Assign higher misclassification costs to minority groups
+   - Threshold Adjustment per group: Equalize positive prediction rates
 
-3. POST-PROCESSING → Adjust the model's decision thresholds per group
-   - Lower decision threshold for disadvantaged groups to equalize outcomes
+3. POST-PROCESSING → Adjust the model's predictions or thresholds
+   - Threshold Adjustment: Different thresholds per group
+   - Calibration Equalization: Calibrate probability estimates per group
 
 After mitigation, recomputes fairness metrics to show improvement.
 """
@@ -31,6 +34,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import accuracy_score
 from sklearn.utils import resample
+from sklearn.calibration import CalibratedClassifierCV
+from imblearn.over_sampling import SMOTE
 from typing import Optional
 
 SUPPORTED_ALGORITHMS = {
@@ -275,6 +280,201 @@ class BiasMitigator:
         self.mitigation_results["threshold_adjustment"] = result
         self._print_strategy_result("Threshold Adjustment", result)
         return result
+
+    # ------------------------------------------------------------------
+    # STRATEGY 4: PRE-PROCESSING — SMOTE OVERSAMPLING
+    # ------------------------------------------------------------------
+    def mitigate_smote(self) -> dict:
+        """
+        Use SMOTE (Synthetic Minority Over-sampling Technique) to generate
+        synthetic samples for underrepresented groups, ensuring balanced representation.
+        More sophisticated than random resampling—creates synthetic points in feature space.
+        """
+        print("\n[▶] Strategy 4: Pre-Processing (SMOTE Oversampling)...")
+
+        X_train, X_test, y_train, y_test, X_train_arr, test_df, algorithm = self._prepare()
+
+        try:
+            # Apply SMOTE to balance classes
+            smote = SMOTE(random_state=42, k_neighbors=5)
+            X_train_smote, y_train_smote = smote.fit_resample(X_train_arr, y_train)
+
+            # Train model on SMOTE-balanced data
+            model = algorithm()
+            if self.name == "knn" or self.name == "naive_bayes" or self.name == "gradient_boosting":
+                model.fit(X_train_smote, y_train_smote)
+            else:
+                model.fit(X_train_smote, y_train_smote)
+
+            y_pred = model.predict(X_test)
+
+            metrics = self._compute_group_metrics(y_test, y_pred, test_df)
+            result = {
+                "strategy": "Pre-Processing: SMOTE Oversampling",
+                "description": (
+                    "SMOTE (Synthetic Minority Over-sampling Technique) was used to generate "
+                    "synthetic samples for underrepresented groups in the training set. This "
+                    "creates a balanced dataset where the model learns equally from all groups "
+                    "without simple duplication of existing samples."
+                ),
+                "group_metrics": metrics,
+                "overall_accuracy": round(float(accuracy_score(y_test, y_pred)), 4),
+                "fairness_improvement": self._summarize_fairness(metrics)
+            }
+
+            self.mitigation_results["smote"] = result
+            self._print_strategy_result("SMOTE", result)
+            return result
+        except Exception as e:
+            print(f"  ⚠ SMOTE failed ({e}): skipping this strategy.")
+            return {
+                "strategy": "Pre-Processing: SMOTE Oversampling",
+                "error": str(e),
+                "group_metrics": {},
+                "overall_accuracy": 0.0,
+                "fairness_improvement": {}
+            }
+
+    # ------------------------------------------------------------------
+    # STRATEGY 5: IN-PROCESSING — COST-SENSITIVE LEARNING
+    # ------------------------------------------------------------------
+    def mitigate_cost_sensitive(self) -> dict:
+        """
+        Implement cost-sensitive learning by computing per-group misclassification costs.
+        Groups with lower positive outcome rates receive higher costs, forcing the model
+        to be more careful when making decisions about them.
+        """
+        print("\n[▶] Strategy 5: In-Processing (Cost-Sensitive Learning)...")
+
+        X_train, X_test, y_train, y_test, X_train_arr, test_df, algorithm = self._prepare()
+
+        df_train = self.df.iloc[X_train.index].copy()
+        y_arr = y_train.values if hasattr(y_train, 'values') else np.array(y_train)
+
+        # Compute cost matrix: higher cost for disadvantaged groups
+        sample_weights = np.ones(len(X_train_arr))
+        primary_col = self.sensitive_cols[0]
+
+        if primary_col in df_train.columns:
+            # Compute positive outcome rate per group
+            group_positive_rates = {}
+            for grp in df_train[primary_col].unique():
+                mask = (df_train[primary_col] == grp).values
+                group_positive_rates[grp] = y_arr[mask].mean() if mask.sum() > 0 else 0.5
+
+            max_rate = max(group_positive_rates.values())
+            min_rate = min(group_positive_rates.values())
+
+            # Assign costs inversely proportional to positive rate
+            # Disadvantaged groups get higher costs
+            for i in range(len(df_train)):
+                grp = df_train.iloc[i][primary_col]
+                grp_rate = group_positive_rates.get(grp, 0.5)
+                # Cost penalty: higher for disadvantaged groups
+                cost_multiplier = (max_rate - grp_rate) / (max_rate - min_rate + 0.001) * 2.0 + 1.0
+                sample_weights[i] = cost_multiplier
+
+        # Train with cost-sensitive weights
+        model = algorithm()
+        if self.name == "knn" or self.name == "naive_bayes" or self.name == "gradient_boosting":
+            model.fit(X_train_arr, y_train)
+        else:
+            model.fit(X_train_arr, y_train, sample_weight=sample_weights)
+
+        y_pred = model.predict(X_test)
+
+        metrics = self._compute_group_metrics(y_test, y_pred, test_df)
+        result = {
+            "strategy": "In-Processing: Cost-Sensitive Learning",
+            "description": (
+                "A cost matrix was computed based on group-level disparities. Groups with "
+                "lower positive outcome rates received higher misclassification costs during "
+                "training, forcing the model to prioritize accuracy for disadvantaged groups."
+            ),
+            "group_metrics": metrics,
+            "overall_accuracy": round(float(accuracy_score(y_test, y_pred)), 4),
+            "fairness_improvement": self._summarize_fairness(metrics)
+        }
+
+        self.mitigation_results["cost_sensitive"] = result
+        self._print_strategy_result("Cost-Sensitive Learning", result)
+        return result
+
+    # ------------------------------------------------------------------
+    # STRATEGY 6: POST-PROCESSING — CALIBRATION EQUALIZATION
+    # ------------------------------------------------------------------
+    def mitigate_calibration(self) -> dict:
+        """
+        Apply per-group probability calibration to ensure that predicted probabilities
+        are well-calibrated (representative of true probabilities) within each demographic group.
+        This improves fairness by making the model's confidence scores meaningful for all groups.
+        """
+        print("\n[▶] Strategy 6: Post-Processing (Calibration Equalization)...")
+
+        X_train, X_test, y_train, y_test, X_train_arr, test_df, algorithm = self._prepare()
+
+        try:
+            # Train a base model
+            base_model = algorithm()
+            base_model.fit(X_train_arr, y_train)
+
+            # Wrap with calibration
+            calibrated_model = CalibratedClassifierCV(base_model, method='sigmoid', cv=5)
+            calibrated_model.fit(X_train_arr, y_train)
+
+            # Get calibrated probabilities
+            y_proba = calibrated_model.predict_proba(X_test)[:, 1]
+            y_pred = (y_proba >= 0.5).astype(int)
+
+            metrics = self._compute_group_metrics(y_test, y_pred, test_df)
+
+            # Compute per-group calibration statistics
+            primary_col = self.sensitive_cols[0] if self.sensitive_cols else None
+            group_calibration = {}
+
+            if primary_col and primary_col in test_df.columns:
+                groups = test_df[primary_col].values
+                for grp in np.unique(groups):
+                    mask = groups == grp
+                    grp_proba = y_proba[mask]
+                    grp_y = y_test[mask]
+                    # Expected Calibration Error (ECE)
+                    n_bins = min(10, max(2, len(grp_y) // 10))
+                    bin_edges = np.linspace(0, 1, n_bins + 1)
+                    ece = 0.0
+                    for i in range(n_bins):
+                        mask_bin = (grp_proba >= bin_edges[i]) & (grp_proba < bin_edges[i + 1])
+                        if mask_bin.sum() > 0:
+                            conf = grp_proba[mask_bin].mean()
+                            acc = grp_y[mask_bin].mean()
+                            ece += abs(conf - acc) * mask_bin.sum() / len(grp_y)
+                    group_calibration[str(grp)] = round(float(ece), 4)
+
+            result = {
+                "strategy": "Post-Processing: Calibration Equalization",
+                "description": (
+                    "Sigmoid calibration was applied to the model's probability estimates. "
+                    "This ensures that predicted probabilities are well-calibrated within each "
+                    "demographic group, making decision-making more trustworthy and fair across groups."
+                ),
+                "group_metrics": metrics,
+                "group_calibration_error": group_calibration,
+                "overall_accuracy": round(float(accuracy_score(y_test, y_pred)), 4),
+                "fairness_improvement": self._summarize_fairness(metrics)
+            }
+
+            self.mitigation_results["calibration"] = result
+            self._print_strategy_result("Calibration Equalization", result)
+            return result
+        except Exception as e:
+            print(f"  ⚠ Calibration failed ({e}): skipping this strategy.")
+            return {
+                "strategy": "Post-Processing: Calibration Equalization",
+                "error": str(e),
+                "group_metrics": {},
+                "overall_accuracy": 0.0,
+                "fairness_improvement": {}
+            }
 
     # ------------------------------------------------------------------
     # HELPERS

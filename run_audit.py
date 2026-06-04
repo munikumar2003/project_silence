@@ -171,13 +171,21 @@ def run_pipeline(
     if generate_pdf:
         print("\n🛠   STEP 4 — Bias Mitigation")
         mit = BiasMitigator(df=df, sensitive_cols=use_cols, target_col=target_col)
-        r1, r2, r3 = mit.mitigate_reweighting(), mit.mitigate_resampling(), mit.mitigate_threshold_adjustment()
+        r1 = mit.mitigate_reweighting()
+        r2 = mit.mitigate_resampling()
+        r3 = mit.mitigate_threshold_adjustment()
+        r4 = mit.mitigate_smote()
+        r5 = mit.mitigate_cost_sensitive()
+        r6 = mit.mitigate_calibration()
         best = mit.get_best_strategy()
         mitigation = {
             "mitigation_results": {
                 "reweighting":          serialize(r1),
                 "resampling":           serialize(r2),
                 "threshold_adjustment": serialize(r3),
+                "smote":                serialize(r4),
+                "cost_sensitive":       serialize(r5),
+                "calibration":          serialize(r6),
             },
             "recommended_strategy": best,
         }

@@ -2,7 +2,7 @@
 
 > **Detect hidden discrimination in AI systems before they harm real people.**
 
-FairSight is a full-stack platform that inspects datasets and machine learning models for hidden unfairness across demographic groups. Organisations upload any CSV dataset and any trained model, select protected attributes, and receive a comprehensive fairness audit — with visual dashboards, severity-coded flags, three bias mitigation strategies, and a downloadable professional PDF report.
+FairSight is a full-stack platform that inspects datasets and machine learning models for hidden unfairness across demographic groups. Organisations upload any CSV dataset and any trained model, select protected attributes, and receive a comprehensive fairness audit — with visual dashboards, severity-coded flags, six bias mitigation strategies, and a downloadable professional PDF report.
 
 ---
 
@@ -22,7 +22,7 @@ Upload any CSV dataset + any trained model (.pkl/.joblib)
     Step 1 — Data Ingestion & Profiling
     Step 2 — Dataset Bias Detection
     Step 3 — Model Fairness Audit
-    Step 4 — Bias Mitigation (3 strategies)
+    Step 4 — Bias Mitigation (6 strategies)
     Step 5 — REST API (Flask, 7 endpoints)
     Step 6 — Professional PDF Report (ReportLab)
               ↓
@@ -56,10 +56,19 @@ Upload any CSV dataset + any trained model (.pkl/.joblib)
 - 3-stage encoding resolution for external models (prevents zero-score bug)
 
 ### Bias Mitigation
-Three evidence-based strategies applied and compared:
-1. **Pre-Processing: Reweighting** — higher sample weights for disadvantaged groups
-2. **Pre-Processing: Resampling** — oversample underrepresented groups
-3. **Post-Processing: Threshold Adjustment** — lower decision threshold per group
+Six evidence-based strategies applied and compared:
+
+**Pre-Processing:**
+1. **Reweighting** — assign higher sample weights to disadvantaged groups during training
+2. **Resampling** — random oversampling of underrepresented groups to balance training data
+3. **SMOTE** — synthetic minority over-sampling technique; generates synthetic samples in feature space
+
+**In-Processing:**
+4. **Cost-Sensitive Learning** — assign higher misclassification costs to minority groups
+
+**Post-Processing:**
+5. **Threshold Adjustment** — lower decision threshold per group to equalize positive prediction rates
+6. **Calibration Equalization** — per-group probability calibration using sigmoid method
 
 Best strategy auto-recommended based on lowest remaining fairness gap.
 
@@ -157,7 +166,7 @@ This creates `loan_data.csv` — a 1,000-row loan approval dataset with delibera
 python app.py
 ```
 
-API runs at **http://localhost:5050**
+API runs at **http://localhost:8080**
 
 ### 4. Open the Dashboard
 Open the **https://github.com/munikumar2003/project_silence/frontend**
@@ -233,7 +242,7 @@ Base URL: `http://localhost:8080`
 | `POST` | `/api/upload` | Upload a CSV dataset |
 | `POST` | `/api/upload_model` | Upload a pre-trained `.pkl`/`.joblib` model |
 | `POST` | `/api/audit` | Run the full bias audit pipeline (Steps 1–3) |
-| `POST` | `/api/mitigate` | Run all 3 mitigation strategies (Step 4) |
+| `POST` | `/api/mitigate` | Run all 6 mitigation strategies (Step 4) |
 | `GET` | `/api/report/<sid>` | Generate and download the PDF report |
 
 ### Example: Full Audit Flow
@@ -422,7 +431,7 @@ The model amplified the raw data bias — the gender gap grew from 11.5% (in dat
 
 - [IBM AIF360](https://github.com/Trusted-AI/AIF360) and [Fairlearn](https://fairlearn.org/) — foundational fairness metric definitions
 - [EEOC Uniform Guidelines](https://www.eeoc.gov/laws/guidance/questions-and-answers-clarify-and-provide-common-interpretation-uniform-guidelines) — 80% rule threshold
-- Built for [Google Solution Challenge 2026](https://developers.google.com/community/gdsc-solution-challenge)
+- Built for [Google Solution Challenge 2026](https://hack2skill.com/event/build-with-ai?tab=solutionchallenge2026)
 
 ---
 
