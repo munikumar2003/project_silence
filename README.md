@@ -22,11 +22,12 @@ Upload any CSV dataset + any trained model (.pkl/.joblib)
     Step 1 — Data Ingestion & Profiling
     Step 2 — Dataset Bias Detection
     Step 3 — Model Fairness Audit
+    Step 3.5 — Individual-Level Fairness (SHAP Explanations)
     Step 4 — Bias Mitigation (6 strategies)
-    Step 5 — REST API (Flask, 7 endpoints)
+    Step 5 — REST API (Flask, 8 endpoints)
     Step 6 — Professional PDF Report (ReportLab)
               ↓
-    Risk Score 0–100 · PASS/FAIL per metric · Actionable recommendations
+    Risk Score 0–100 · PASS/FAIL per metric · Feature importance · Actionable recommendations
 ```
 
 ---
@@ -71,6 +72,17 @@ Six evidence-based strategies applied and compared:
 6. **Calibration Equalization** — per-group probability calibration using sigmoid method
 
 Best strategy auto-recommended based on lowest remaining fairness gap.
+
+### Individual-Level Fairness (SHAP Explanations)
+Understand **why** individual predictions are unfair:
+
+- **Per-individual feature importance** — which features drive each decision?
+- **Group-level feature divergence** — different features used for different groups?
+- **Misclassification analysis** — what features caused errors in minority groups?
+- **Unfair case identification** — flag the most problematic predictions per group
+- **Top contributing features** — rank features by SHAP impact on predictions
+
+Uses SHAP (SHapley Additive exPlanations) — a game-theory approach for model interpretability. Reveals if protected attributes or proxies are driving unfair predictions.
 
 ### Dashboard UI
 - Domain selector: Loan, Hiring, Medical, Housing, Criminal Justice, Education
@@ -241,7 +253,8 @@ Base URL: `http://localhost:8080`
 | `GET` | `/api/sample` | Load the built-in biased loan dataset |
 | `POST` | `/api/upload` | Upload a CSV dataset |
 | `POST` | `/api/upload_model` | Upload a pre-trained `.pkl`/`.joblib` model |
-| `POST` | `/api/audit` | Run the full bias audit pipeline (Steps 1–3) |
+| `POST` | `/api/audit` | Run the full bias audit pipeline (Steps 1–3.5) |
+| `GET` | `/api/shap/<sid>` | Get SHAP individual-level fairness explanations (Step 3.5) |
 | `POST` | `/api/mitigate` | Run all 6 mitigation strategies (Step 4) |
 | `GET` | `/api/report/<sid>` | Generate and download the PDF report |
 

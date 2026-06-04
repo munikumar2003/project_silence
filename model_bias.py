@@ -30,6 +30,13 @@ import os
 import numpy as np
 import pandas as pd
 import joblib
+import warnings
+warnings.filterwarnings('ignore')
+try:
+    from shap_explanations import SHAPFairnessExplainer
+    SHAP_AVAILABLE = True
+except ImportError:
+    SHAP_AVAILABLE = False
 from sklearn.ensemble        import (RandomForestClassifier,
                                          GradientBoostingClassifier,
                                          ExtraTreesClassifier,
@@ -462,6 +469,43 @@ class ModelBiasDetector:
             raise RuntimeError("No model to save.")
         joblib.dump(self.model, path)
         print(f"[✔] Model saved → {path}")
+
+    def compute_shap_explanations(self) -> dict:
+        """
+        Compute SHAP explanations for individual-level fairness analysis.
+        Identifies which features drive unfair predictions per demographic group.
+        """
+        if not SHAP_AVAILABLE:
+            return {"error": "SHAP not installed. Run: pip install shap>=0.42.0"}
+
+        if self.X_test is None or self.test_df is None:
+            return {"error": "Model not yet trained/loaded. Train or load model first."}
+
+        try:
+            print("\n[•] Computing SHAP explanations for individual fairness...")
+
+            # Get feature names from test_df
+            feature_names = [c for c in self.feature_cols if c != self.target_col]
+
+            # Create SHAP explainer
+            explainer = SHAPFairnessExplainer(
+                model=self.model,
+                X_test=self.X_test,
+                y_test=self.y_test,
+                y_pred=self.y_pred,
+                test_df=self.test_df,
+                feature_names=feature_names,
+                sensitive_cols=self.sensitive_cols,
+            )
+
+            # Compute SHAP values and analysis
+            shap_results = explainer.compute_shap_values()
+            print(f"[✔] SHAP analysis complete.")
+            return explainer.summary_report()
+
+        except Exception as e:
+            print(f"[⚠] SHAP computation failed: {e}")
+            return {"error": str(e), "group_analysis": {}}
 
     @staticmethod
     def list_algorithms():

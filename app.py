@@ -298,6 +298,38 @@ def run_mitigation_endpoint():
 
 
 # ══════════════════════════════════════════════════════════════════════
+# SHAP EXPLANATIONS — Individual-level fairness
+# ══════════════════════════════════════════════════════════════════════
+@app.route("/api/shap/<sid>")
+def get_shap_explanations(sid):
+    """
+    Returns SHAP-based individual fairness explanations.
+    Shows which features drive unfair predictions per demographic group.
+    """
+    try:
+        if sid not in SESSIONS or "audit_result" not in SESSIONS[sid]:
+            return jsonify({"error": "Run /api/audit first."}), 400
+
+        audit_result = SESSIONS[sid]["audit_result"]
+        shap_data = audit_result.get("shap_explanations", {})
+
+        if "error" in shap_data:
+            return jsonify({
+                "session_id": sid,
+                "warning": shap_data["error"],
+                "message": "SHAP explanations not available. Install with: pip install shap>=0.42.0"
+            }), 200
+
+        return jsonify({
+            "session_id": sid,
+            "shap_explanations": shap_data,
+            "message": "Individual-level fairness explanations computed via SHAP.",
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+
+# ══════════════════════════════════════════════════════════════════════
 # PDF REPORT
 # ══════════════════════════════════════════════════════════════════════
 @app.route("/api/report/<sid>")

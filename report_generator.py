@@ -175,6 +175,7 @@ class BiasAuditReport:
         self._dataset_profile_section()
         self._dataset_bias_section()
         self._model_bias_section()
+        self._shap_section()
         if self.mitigation:
             self._mitigation_section()
         self._recommendations_section()
@@ -543,14 +544,93 @@ class BiasAuditReport:
             block.append(Spacer(1, 0.2*inch))
             self.story.append(KeepTogether(block))
 
-    # ── Section 6: Mitigation ────────────────────────────────────────
+    # ── Section 6: SHAP Explanations ───────────────────────────────────
+    def _shap_section(self):
+        S = self.styles
+        shap = self.audit.get("shap_explanations", {})
+        if not shap:
+            return
+
+        self.story.append(PageBreak())
+        self.story.append(Paragraph("4. SHAP-Based Individual Fairness Analysis", S["h1"]))
+        self.story.append(HRFlowable(width="100%", thickness=1, color=C_MID, spaceAfter=10))
+        self.story.append(Paragraph(
+            "This section summarises local feature influence on model predictions using SHAP values. "
+            "It highlights feature drivers for groups and identifies individual cases with potential unfair treatment.",
+            S["body"]
+        ))
+        self.story.append(Spacer(1, 0.1*inch))
+
+        group_analysis = shap.get("group_analysis", {})
+        if group_analysis:
+            self.story.append(Paragraph("Key Feature Drivers by Group", S["h2"]))
+            ga_rows = [["Group", "Top Influential Feature", "Impact Direction"]]
+            for group, info in group_analysis.items():
+                ga_rows.append([
+                    str(group),
+                    str(info.get("top_feature", "N/A")),
+                    str(info.get("direction", "N/A"))
+                ])
+            self.story.append(metric_table(
+                ga_rows[1:], header_row=ga_rows[0],
+                col_widths=[2.5*inch, 2.5*inch, 2*inch]
+            ))
+            self.story.append(Spacer(1, 0.12*inch))
+
+        fairness_insights = shap.get("fairness_insights", [])
+        if fairness_insights:
+            self.story.append(Paragraph("SHAP Fairness Insights", S["h2"]))
+            for insight in fairness_insights:
+                message = insight.get("message") if isinstance(insight, dict) else str(insight)
+                self.story.append(Paragraph(f"• {message}", S["body"]))
+            self.story.append(Spacer(1, 0.12*inch))
+
+        unfair_cases = shap.get("unfair_cases", {})
+        flattened_cases = []
+        if isinstance(unfair_cases, dict):
+            for grp, cases in unfair_cases.items():
+                if isinstance(cases, list):
+                    for case in cases:
+                        case_copy = dict(case)
+                        case_copy["sensitive_group"] = grp
+                        flattened_cases.append(case_copy)
+        elif isinstance(unfair_cases, list):
+            flattened_cases = unfair_cases
+
+        if flattened_cases:
+            self.story.append(Paragraph("Top Individual Cases with Potential Unfair Outcomes", S["h2"]))
+            uc_rows = [["Case ID", "Sensitive Group", "Predicted Outcome", "Most Influential Feature"]]
+            for case in flattened_cases[:6]:
+                top_feature = case.get("top_shap_feature", case.get("top_contributing_features", "-"))
+                if isinstance(top_feature, list):
+                    top_feature = ", ".join(
+                        str(feat[0]) if isinstance(feat, (list, tuple)) and feat else str(feat)
+                        for feat in top_feature[:3]
+                    )
+                elif isinstance(top_feature, tuple) and top_feature:
+                    top_feature = str(top_feature[0])
+                else:
+                    top_feature = str(top_feature)
+                uc_rows.append([
+                    str(case.get("case_id", case.get("row_index", "-"))),
+                    str(case.get("sensitive_group", "-")),
+                    str(case.get("predicted_outcome", case.get("prediction", "-"))),
+                    Paragraph(top_feature, S["body"])
+                ])
+            self.story.append(metric_table(
+                uc_rows[1:], header_row=uc_rows[0],
+                col_widths=[1.2*inch, 1.6*inch, 1.6*inch, 3.1*inch]
+            ))
+            self.story.append(Spacer(1, 0.12*inch))
+
+    # ── Section 7: Mitigation ────────────────────────────────────────
     def _mitigation_section(self):
         S = self.styles
         self.story.append(PageBreak())
-        self.story.append(Paragraph("4. Bias Mitigation Results", S["h1"]))
+        self.story.append(Paragraph("5. Bias Mitigation Results", S["h1"]))
         self.story.append(HRFlowable(width="100%", thickness=1, color=C_MID, spaceAfter=10))
         self.story.append(Paragraph(
-            "Three mitigation strategies were applied. The table below shows the "
+            "Bias mitigation strategies were applied. The table below shows the "
             "reduction in fairness gaps achieved by each approach.",
             S["body"]
         ))
@@ -601,7 +681,7 @@ class BiasAuditReport:
     def _recommendations_section(self):
         S = self.styles
         self.story.append(PageBreak())
-        self.story.append(Paragraph("5. Recommendations", S["h1"]))
+        self.story.append(Paragraph("6. Recommendations", S["h1"]))
         self.story.append(HRFlowable(width="100%", thickness=1, color=C_MID, spaceAfter=10))
 
         summary = self.audit.get("summary", {})

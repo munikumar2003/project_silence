@@ -143,6 +143,10 @@ def run_pipeline(
     overall_acc = accuracy_score(md.y_test, md.y_pred)
     model_bias  = md.compute_fairness_metrics()
 
+    # ── SHAP Explanations (Step 3.5) ──────────────────────────
+    print("\n🔍  STEP 3.5 — Individual-Level Fairness (SHAP)")
+    shap_explanations = md.compute_shap_explanations()
+
     model_info = {
         "algorithm":    algo_label,
         "source":       source_label,
@@ -162,6 +166,7 @@ def run_pipeline(
         "dataset_profile": serialize(profile),
         "dataset_bias":    serialize(dataset_bias),
         "model_bias":      serialize(model_bias),
+        "shap_explanations": serialize(shap_explanations),
         "model_info":      model_info,
         "risk_score":      risk,
         "summary":         summary,
