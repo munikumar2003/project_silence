@@ -44,7 +44,7 @@ Upload any CSV dataset + any trained model (.pkl/.joblib)
 ### Model Fairness Audit
 - **Upload your own model** (`.pkl`/`.joblib`) — audited AS-IS, no retraining
 - **Or choose a built-in algorithm** to train and audit:
-  - Random Forest, Logistic Regression, Gradient Boosting, Decision Tree, SVM, KNN, Naïve Bayes
+  - Random Forest, Logistic Regression, Gradient Boosting, Hist Gradient Boosting, Extra Trees, Decision Tree, SVM, KNN, Naïve Bayes
 - 6 fairness metrics per demographic group:
   - Demographic Parity Difference
   - Equalized Odds (TPR gap)
@@ -210,6 +210,8 @@ python run_audit.py \
 | `random_forest` | Random Forest |
 | `logistic_regression` | Logistic Regression |
 | `gradient_boosting` | Gradient Boosting |
+| `hist_gradient_boosting` | Hist Gradient Boosting |
+| `extra_trees` | Extra Trees |
 | `decision_tree` | Decision Tree |
 | `svm` | Support Vector Machine |
 | `knn` | K-Nearest Neighbours |

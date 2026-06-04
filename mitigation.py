@@ -18,13 +18,15 @@ After mitigation, recomputes fairness metrics to show improvement.
 
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import (RandomForestClassifier,
+                                 GradientBoostingClassifier,
+                                 ExtraTreesClassifier,
+                                 HistGradientBoostingClassifier)
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import accuracy_score
@@ -32,13 +34,15 @@ from sklearn.utils import resample
 from typing import Optional
 
 SUPPORTED_ALGORITHMS = {
-    "random_forest":      lambda: RandomForestClassifier(n_estimators=100, max_depth=8, random_state=42, class_weight="balanced"),
-    "logistic_regression":lambda: LogisticRegression(max_iter=1000, random_state=42, class_weight="balanced"),
-    "gradient_boosting":  lambda: GradientBoostingClassifier(n_estimators=100, max_depth=4, random_state=42),
-    "decision_tree":      lambda: DecisionTreeClassifier(max_depth=8, random_state=42, class_weight="balanced"),
-    "svm":                lambda: SVC(probability=True, random_state=42, class_weight="balanced"),
-    "knn":                lambda: KNeighborsClassifier(n_neighbors=7),
-    "naive_bayes":        lambda: GaussianNB(),
+    "random_forest":          lambda: RandomForestClassifier(n_estimators=100, max_depth=8, random_state=42, class_weight="balanced"),
+    "logistic_regression":    lambda: LogisticRegression(max_iter=1000, random_state=42, class_weight="balanced"),
+    "gradient_boosting":      lambda: GradientBoostingClassifier(n_estimators=100, max_depth=4, random_state=42),
+    "hist_gradient_boosting": lambda: HistGradientBoostingClassifier(max_iter=200, max_depth=5, random_state=42),
+    "extra_trees":            lambda: ExtraTreesClassifier(n_estimators=100, max_depth=8, random_state=42, class_weight="balanced"),
+    "decision_tree":          lambda: DecisionTreeClassifier(max_depth=8, random_state=42, class_weight="balanced"),
+    "svm":                    lambda: SVC(probability=True, random_state=42, class_weight="balanced"),
+    "knn":                    lambda: KNeighborsClassifier(n_neighbors=7),
+    "naive_bayes":            lambda: GaussianNB(),
 }
 
 class BiasMitigator:

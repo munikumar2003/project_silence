@@ -14,6 +14,7 @@ Two modes:
 
 Supported algorithms (Mode B):
   random_forest | logistic_regression | gradient_boosting |
+  hist_gradient_boosting | extra_trees |
   decision_tree | svm | knn | naive_bayes
 
 Fairness metrics per sensitive attribute group:
@@ -29,7 +30,10 @@ import os
 import numpy as np
 import pandas as pd
 import joblib
-from sklearn.ensemble        import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble        import (RandomForestClassifier,
+                                         GradientBoostingClassifier,
+                                         ExtraTreesClassifier,
+                                         HistGradientBoostingClassifier)
 from sklearn.linear_model    import LogisticRegression
 from sklearn.tree            import DecisionTreeClassifier
 from sklearn.svm             import SVC
@@ -42,19 +46,23 @@ from sklearn.pipeline        import Pipeline
 
 
 SUPPORTED_ALGORITHMS = {
-    "random_forest":       lambda: RandomForestClassifier(n_estimators=150, max_depth=8, random_state=42, class_weight="balanced"),
-    "logistic_regression": lambda: LogisticRegression(max_iter=1000, random_state=42, class_weight="balanced"),
-    "gradient_boosting":   lambda: GradientBoostingClassifier(n_estimators=150, max_depth=4, random_state=42),
-    "decision_tree":       lambda: DecisionTreeClassifier(max_depth=8, random_state=42, class_weight="balanced"),
-    "svm":                 lambda: SVC(probability=True, random_state=42, class_weight="balanced", kernel="rbf"),
-    "knn":                 lambda: KNeighborsClassifier(n_neighbors=7),
-    "naive_bayes":         lambda: GaussianNB(),
+    "random_forest":           lambda: RandomForestClassifier(n_estimators=150, max_depth=8, random_state=42, class_weight="balanced"),
+    "logistic_regression":     lambda: LogisticRegression(max_iter=1000, random_state=42, class_weight="balanced"),
+    "gradient_boosting":       lambda: GradientBoostingClassifier(n_estimators=150, max_depth=4, random_state=42),
+    "hist_gradient_boosting":  lambda: HistGradientBoostingClassifier(max_iter=200, max_depth=5, random_state=42),
+    "extra_trees":             lambda: ExtraTreesClassifier(n_estimators=150, max_depth=8, random_state=42, class_weight="balanced"),
+    "decision_tree":           lambda: DecisionTreeClassifier(max_depth=8, random_state=42, class_weight="balanced"),
+    "svm":                     lambda: SVC(probability=True, random_state=42, class_weight="balanced", kernel="rbf"),
+    "knn":                     lambda: KNeighborsClassifier(n_neighbors=7),
+    "naive_bayes":             lambda: GaussianNB(),
 }
 
 ALGORITHM_DISPLAY_NAMES = {
     "random_forest":       "Random Forest",
     "logistic_regression": "Logistic Regression",
     "gradient_boosting":   "Gradient Boosting",
+    "hist_gradient_boosting": "Hist Gradient Boosting",
+    "extra_trees":         "Extra Trees",
     "decision_tree":       "Decision Tree",
     "svm":                 "Support Vector Machine (SVM)",
     "knn":                 "K-Nearest Neighbours",
