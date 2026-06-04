@@ -273,6 +273,9 @@ def run_mitigation_endpoint():
         r1   = mitigator.mitigate_reweighting()
         r2   = mitigator.mitigate_resampling()
         r3   = mitigator.mitigate_threshold_adjustment()
+        r4   = mitigator.mitigate_smote()
+        r5   = mitigator.mitigate_cost_sensitive()
+        r6   = mitigator.mitigate_calibration()
         best = mitigator.get_best_strategy()
 
         result = {
@@ -280,6 +283,9 @@ def run_mitigation_endpoint():
                 "reweighting":          serialize(r1),
                 "resampling":           serialize(r2),
                 "threshold_adjustment": serialize(r3),
+                "smote":                serialize(r4),
+                "cost_sensitive":       serialize(r5),
+                "calibration":          serialize(r6),
             },
             "recommended_strategy": best,
             "message": f"Mitigation complete. Recommended: {best}",
