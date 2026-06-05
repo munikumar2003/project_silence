@@ -66,16 +66,27 @@ class SHAPFairnessExplainer:
     def compute_shap_values(self) -> dict:
         """
         Compute SHAP values using KernelExplainer (model-agnostic).
-        Returns dict with per-group feature importance and key insights.
+        Capped at 50 evaluation samples for speed.
         """
         try:
             print("[•] Computing SHAP values for individual predictions...")
 
-            # Use KernelExplainer for model-agnostic explanations
-            # For faster computation, use a sample if dataset is very large
-            background_size = min(100, len(self.X_test) // 2)
+            # 1. Cap the background size for reference
+            background_size = min(10, len(self.X_test) // 2)
             background_indices = np.random.choice(len(self.X_test), background_size, replace=False)
             X_background = self.X_test[background_indices]
+
+            # 2. CRITICAL CHANGE: Slice the evaluation data to a maximum of 50 samples
+            eval_size = min(50, len(self.X_test))
+            eval_indices = np.arange(eval_size)  # Takes the first 50 rows
+            
+            # Sync all internal test arrays to match the 50 rows
+            self.X_test = self.X_test[eval_indices]
+            self.y_test = self.y_test[eval_indices]
+            self.y_pred = self.y_pred[eval_indices]
+            # Ensure the tracking dataframe is also synced
+            if hasattr(self, 'test_df') and self.test_df is not None:
+                self.test_df = self.test_df.iloc[eval_indices].reset_index(drop=True)
 
             # Create explainer
             self.explainer = shap.KernelExplainer(
@@ -83,18 +94,17 @@ class SHAPFairnessExplainer:
                 data=X_background
             )
 
-            # Compute SHAP values (for positive class if predict_proba is used)
+            # Compute SHAP values for ONLY the 50 sliced rows
+            print(f"   ➔ Running calculations for {eval_size} samples...")
             self.shap_values = self.explainer.shap_values(self.X_test)
+            
             if hasattr(self.model, 'predict_proba'):
-                # SHAP values shape: (n_samples, n_features, n_classes)
-                # We focus on positive class (index 1) for binary classification.
                 if isinstance(self.shap_values, list):
                     self.shap_values = self.shap_values[1]
                 elif isinstance(self.shap_values, np.ndarray) and self.shap_values.ndim == 3:
                     class_index = 1 if self.shap_values.shape[2] > 1 else 0
                     self.shap_values = self.shap_values[:, :, class_index]
             elif isinstance(self.shap_values, np.ndarray) and self.shap_values.ndim == 3:
-                # Fallback for 3D outputs from SHAP explainer
                 self.shap_values = self.shap_values[:, :, 0]
 
             print(f"   ✔ SHAP values computed. Shape: {self.shap_values.shape}")
@@ -107,7 +117,7 @@ class SHAPFairnessExplainer:
         except Exception as e:
             print(f"   ⚠ SHAP computation failed: {e}")
             return {"error": str(e), "group_analysis": {}}
-
+        
     def _analyze_group_fairness(self) -> dict:
         """
         Analyze SHAP values per demographic group to identify fairness issues.
